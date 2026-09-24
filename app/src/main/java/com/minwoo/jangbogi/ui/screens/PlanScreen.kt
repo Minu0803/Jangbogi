@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,6 +46,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun PlanScreen(onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as JangbogiApp
     val vm: HomeViewModel = viewModel(factory = app.container.homeViewModelFactory())
@@ -170,10 +172,10 @@ private fun PlanItemCard(entry: PlannedShoppingItem, onEdit: () -> Unit, onStock
             }
             Surface(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("🗓  살 때  ${item.plannedBuyAt?.let(::dateLabel) ?: "날짜 미정"}", style = MaterialTheme.typography.bodyMedium)
+                    Text("🗓  살 때  ${item.plannedBuyAt?.let { dateLabel(dateFromMillis(it)) } ?: "날짜 미정"}", style = MaterialTheme.typography.bodyMedium)
                     Text("📍  구매처  ${item.preferredStore?.takeIf { it.isNotBlank() } ?: "미정"}", style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "⏰  꼭 살 날  ${deadline?.let(::dateLabel) ?: "기한 미정"}${if (overdue) "  ·  기한 지남" else ""}",
+                        "⏰  꼭 살 날  ${deadline?.let { dateLabel(it) } ?: "기한 미정"}${if (overdue) "  ·  기한 지남" else ""}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (overdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                     )
@@ -200,7 +202,4 @@ private fun PlanItemCard(entry: PlannedShoppingItem, onEdit: () -> Unit, onStock
 private fun dateFromMillis(value: Long): LocalDate =
     Instant.ofEpochMilli(value).atZone(ZoneId.of("UTC")).toLocalDate()
 
-private fun dateLabel(value: Long): String {
-    val date = dateFromMillis(value)
-    return "${date.monthValue}월 ${date.dayOfMonth}일"
-}
+private fun dateLabel(date: LocalDate): String = "${date.monthValue}월 ${date.dayOfMonth}일"
