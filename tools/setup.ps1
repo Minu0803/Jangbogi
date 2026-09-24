@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$root  = 'C:\Users\minwoo\Documents\Jangbogi'
+$root  = Split-Path -Parent $PSScriptRoot
 $tools = Join-Path $root 'tools'
 $dl    = Join-Path $tools 'dl'
 New-Item -ItemType Directory -Force $dl | Out-Null
@@ -59,11 +59,7 @@ Step 'SDKPKGS' {
 }
 
 Step 'PROPS' {
-    Set-Content "$root\local.properties" 'sdk.dir=C:/Users/minwoo/Documents/Jangbogi/tools/android-sdk' -Encoding ascii
-    $gp = Get-Content "$root\gradle.properties" -Raw
-    if ($gp -notmatch 'org\.gradle\.java\.home') {
-        Add-Content "$root\gradle.properties" 'org.gradle.java.home=C:/Users/minwoo/Documents/Jangbogi/tools/jdk17' -Encoding ascii
-    }
+    Set-Content "$root\local.properties" ("sdk.dir=" + (($tools -replace '\\', '/') + '/android-sdk')) -Encoding ascii
 }
 
 # 의존성 프리다운로드용 웜업 빌드. 에이전트가 소스를 쓰는 중이라 컴파일 실패 가능 — 실패해도 정상(캐시 목적)
