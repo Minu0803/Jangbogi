@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>장보기 — UI 목업</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #202521;
+    font-family: system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif;
+    color: #E4EAE4;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page-head { padding: 36px 44px 16px; }
+  .page-head h1 { font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
+  .page-head p { font-size: 13px; color: #98A099; margin-top: 6px; line-height: 1.5; }
+  .legend { display: flex; gap: 18px; margin-top: 16px; flex-wrap: wrap; }
+  .sw { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #98A099; }
+  .sw i { width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 1px solid rgba(255,255,255,.18); }
+
+  .board { display: flex; gap: 40px; padding: 14px 44px 56px; overflow-x: auto; align-items: flex-start; }
+  .fw { flex: none; }
+  .frame-label { font-size: 13px; font-weight: 600; letter-spacing: .3px; color: #AEB6AF; margin: 0 4px 12px; }
+  .frame-note { font-size: 11.5px; color: #7E867F; margin: 10px 4px 0; max-width: 390px; }
+
+  .frame {
+    position: relative; width: 390px; height: 844px; border-radius: 30px; overflow: hidden;
+    background: var(--bg); color: var(--on-bg);
+    box-shadow: 0 18px 50px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.07);
+  }
+
+  .light {
+    --bg: #F6FBF4;            --on-bg: #171D18;
+    --sv: #DDE5DC;            --on-sv: #414942;
+    --card: #FFFFFF;          --card-bd: rgba(193,201,192,.55);
+    --sc-high: #E4EBE3;
+    --primary: #0F6D40;       --on-primary: #FFFFFF;
+    --sec-ct: #D0E8D8;        --on-sec-ct: #0A1F12;
+    --tertiary: #8F4C00;
+    --outline: #717971;       --outline-v: #C1C9C0;
+    --err-ct: #FFDAD6;        --on-err-ct: #410002;
+    --row-sh: 0 1px 2px rgba(23,29,24,.05), 0 2px 10px rgba(23,29,24,.07);
+    --fab-sh: 0 8px 20px rgba(15,109,64,.35);
+    --dock-fade: rgba(246,251,244,0);
+  }
+  .dark {
+    --bg: #0F1511;            --on-bg: #DFE5DD;
+    --sv: #414942;            --on-sv: #C1C9C0;
+    --card: #262C26;          --card-bd: transparent;
+    --sc-high: #262C26;
+    --primary: #86D9A9;       --on-primary: #00391F;
+    --sec-ct: #374B3E;        --on-sec-ct: #D0E8D8;
+    --tertiary: #FFB877;
+    --outline: #8B938A;       --outline-v: #414942;
+    --err-ct: #93000A;        --on-err-ct: #FFDAD6;
+    --row-sh: 0 1px 2px rgba(0,0,0,.25);
+    --fab-sh: 0 8px 22px rgba(0,0,0,.45);
+    --dock-fade: rgba(15,21,17,0);
+  }
+
+  /* 상태바 */
+  .statusbar { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 10px 24px 0; }
+  .sb-time { font-size: 14px; font-weight: 600; }
+  .sb-right { display: flex; align-items: center; gap: 7px; opacity: .88; }
+  .sig { display: flex; align-items: flex-end; gap: 1.5px; }
+  .sig i { width: 3px; background: currentColor; border-radius: 1px; }
+  .sig i:nth-child(1){height:4px} .sig i:nth-child(2){height:6px} .sig i:nth-child(3){height:8px} .sig i:nth-child(4){height:10px}
+  .sb-right .wifi { width: 15px; height: 15px; }
+  .batt { width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3.5px; position: relative; }
+  .batt i { position: absolute; left: 1.5px; top: 1.5px; bottom: 1.5px; width: 12px; background: currentColor; border-radius: 1.5px; }
+  .batt::after { content: ""; position: absolute; right: -4px; top: 2.5px; width: 2px; height: 5px; background: currentColor; border-radius: 0 1px 1px 0; }
+
+  /* 홈: LargeTopAppBar + 카드 */
+  .large-bar { padding: 36px 20px 26px; }
+  .large-bar h2 { font-size: 28px; font-weight: 800; letter-spacing: -.3px; }
+  .cards { display: flex; flex-direction: column; gap: 12px; padding: 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--card-bd); border-radius: 20px; padding: 16px 18px; box-shadow: var(--row-sh); }
+  .c-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .c-name { font-size: 18px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .c-date { font-size: 13px; font-weight: 500; color: var(--on-sv); flex: none; }
+  .c-mid { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+  .bar { flex: 1; height: 8px; border-radius: 99px; background: var(--sv); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: var(--primary); }
+  .c-count { font-size: 14px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; flex: none; min-width: 32px; text-align: right; }
+  .c-sub { margin-top: 8px; font-size: 15px; font-weight: 500; color: var(--on-sv); }
+  .c-sub.done { color: var(--tertiary); font-weight: 700; }
+  .c-sub.empty { color: var(--outline); }
+  .fab {
+    position: absolute; right: 20px; bottom: 32px; height: 56px;
+    display: flex; align-items: center; gap: 8px; padding: 0 20px;
+    border-radius: 16px; background: var(--primary); color: var(--on-primary);
+    font-size: 15px; font-weight: 700; box-shadow: var(--fab-sh);
+  }
+  .fab svg { width: 22px; height: 22px; }
+  .gesture { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 112px; height: 4px; border-radius: 99px; background: currentColor; opacity: .25; }
+
+  /* 상세: 앱바 + 진행 헤더 + 리스트 */
+  .appbar { display: flex; align-items: center; height: 56px; padding: 0 6px; }
+  .ibtn { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--on-bg); flex: none; }
+  .ibtn svg { width: 23px; height: 23px; }
+  .ab-title { flex: 1; min-width: 0; font-size: 21px; font-weight: 700; padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .phead { padding: 6px 20px 14px; }
+  .ph-top { display: flex; align-items: baseline; justify-content: space-between; }
+  .ph-big { font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+  .ph-count { font-size: 14px; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .bar.lg { height: 10px; margin-top: 10px; }
+
+  .list { padding: 0 16px; }
+  .sech { display: flex; align-items: center; gap: 7px; padding: 18px 4px 8px; }
+  .se { font-size: 16px; }
+  .sname { font-size: 14px; font-weight: 700; color: var(--on-sv); letter-spacing: .2px; }
+  .scount { font-size: 12px; font-weight: 600; color: var(--on-sv); background: var(--sc-high); padding: 1px 8px; border-radius: 99px; }
+  .sech.doneh { border-top: 1px solid var(--outline-v); margin-top: 10px; padding-top: 16px; }
+
+  .row {
+    display: flex; align-items: center; gap: 14px; min-height: 56px; margin-bottom: 8px;
+    background: var(--card); border: 1px solid var(--card-bd); border-radius: 16px;
+    padding: 8px 16px 8px 14px; box-shadow: var(--row-sh);
+  }
+  .chk { width: 28px; height: 28px; border-radius: 50%; border: 2.5px solid var(--outline); flex: none; display: flex; align-items: center; justify-content: center; }
+  .chk svg { width: 17px; height: 17px; display: none; }
+  .rname { flex: 1; min-width: 0; font-size: 18px; font-weight: 600; }
+  .qty { flex: none; font-size: 13px; font-weight: 700; background: var(--sec-ct); color: var(--on-sec-ct); padding: 3px 10px; border-radius: 99px; }
+  .row.done { opacity: .6; box-shadow: none; }
+  .row.done .chk { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+  .row.done .chk svg { display: block; }
+  .row.done .rname { text-decoration: line-through; font-weight: 500; }
+
+  .swipe { position: relative; margin-bottom: 8px; }
+  .swipe .row { margin-bottom: 0; position: relative; transform: translateX(-64px); }
+  .swipe-bg { position: absolute; inset: 0; border-radius: 16px; background: var(--err-ct); color: var(--on-err-ct); display: flex; align-items: center; justify-content: flex-end; padding-right: 18px; }
+  .swipe-bg svg { width: 23px; height: 23px; }
+
+  /* 하단 도크: 추천 칩 + 빠른 추가 바 */
+  .dock {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 16px 30px;
+    background: linear-gradient(to top, var(--bg) 78%, var(--dock-fade));
+  }
+  .chips { display: flex; gap: 8px; margin-bottom: 10px; overflow: hidden; }
+  .chip { flex: none; height: 38px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 99px; background: var(--sec-ct); color: var(--on-sec-ct); font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .qbar { display: flex; align-items: center; gap: 10px; }
+  .qin { flex: 1; height: 56px; border-radius: 28px; background: var(--card); border: 1.5px solid var(--outline-v); display: flex; align-items: center; padding: 0 20px; font-size: 16px; color: var(--on-sv); }
+  .qbtn { flex: none; width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: flex; align-items: center; justify-content: center; box-shadow: var(--fab-sh); }
+  .qbtn svg { width: 22px; height: 22px; }
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path fill="currentColor" d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><path fill="currentColor" d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="currentColor" d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></symbol>
+  <symbol id="i-del" viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path fill="currentColor" d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8 3 3 3-3a4.24 4.24 0 0 0-6 0zm-4-4 2 2a7.07 7.07 0 0 1 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></symbol>
+</svg>
+
+<header class="page-head">
+  <h1>장보기 — UI 목업</h1>
+  <p>390×844 · 1dp = 1px · CONTRACT 6절 화면 구조 반영 · 확정 수치는 design/DESIGN.md · 외부 리소스 0</p>
+  <div class="legend">
+    <span class="sw"><i style="background:#0F6D40"></i>Primary L #0F6D40</span>
+    <span class="sw"><i style="background:#86D9A9"></i>Primary D #86D9A9</span>
+    <span class="sw"><i style="background:#8F4C00"></i>액센트 L #8F4C00</span>
+    <span class="sw"><i style="background:#FFB877"></i>액센트 D #FFB877</span>
+    <span class="sw"><i style="background:#F6FBF4"></i>배경 L #F6FBF4</span>
+    <span class="sw"><i style="background:#0F1511"></i>배경 D #0F1511</span>
+  </div>
+</header>
+
+<main class="board">
+
+  <!-- ═══════ 홈 · 라이트 ═══════ -->
+  <section class="fw">
+    <div class="frame-label">홈 · 라이트</div>
+    <div class="frame light">
+      <div class="statusbar">
+        <span class="sb-time">9:41</span>
+        <span class="sb-right">
+          <span class="sig"><i></i><i></i><i></i><i></i></span>
+          <svg class="wifi"><use href="#i-wifi"/></svg>
+          <span class="batt"><i></i></span>
+        </span>
+      </div>
+      <div class="large-bar"><h2>장보기</h2></div>
+      <div class="cards">
+        <div class="card">
+          <div class="c-top"><span class="c-name">주말 장보기</span><span class="c-date">오늘</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:56%"></i></span><span class="c-count">5/9</span></div>
+          <div class="c-sub">4개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">이마트 특가전</span><span class="c-date">어제</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:100%"></i></span><span class="c-count">6/6</span></div>
+          <div class="c-sub done">완료 🎉</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">곱창전골 재료</span><span class="c-date">2일 전</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:29%"></i></span><span class="c-count">2/7</span></div>
+          <div class="c-sub">5개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">캠핑 간식</span><span class="c-date">4일 전</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:0%"></i></span><span class="c-count">0/5</span></div>
+          <div class="c-sub">5개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">생필품 보충</span><span class="c-date">6월 28일</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:0%"></i></span><span class="c-count">0/0</span></div>
+          <div class="c-sub empty">비어 있음</div>
+        </div>
+      </div>
+      <div class="fab"><svg><use href="#i-plus"/></svg>새 목록</div>
+      <div class="gesture"></div>
+    </div>
+  </section>
+
+  <!-- ═══════ 리스트 상세 · 라이트 ═══════ -->
+  <section class="fw">
+    <div class="frame-label">리스트 상세 · 라이트</div>
+    <div class="frame light">
+      <div class="statusbar">
+        <span class="sb-time">9:41</span>
+        <span class="sb-right">
+          <span class="sig"><i></i><i></i><i></i><i></i></span>
+          <svg class="wifi"><use href="#i-wifi"/></svg>
+          <span class="batt"><i></i></span>
+        </span>
+      </div>
+      <div class="appbar">
+        <span class="ibtn"><svg><use href="#i-back"/></svg></span>
+        <span class="ab-title">주말 장보기</span>
+        <span class="ibtn"><svg><use href="#i-share"/></svg></span>
+        <span class="ibtn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="phead">
+        <div class="ph-top"><span class="ph-big">4개 남았어요</span><span class="ph-count">5/9 완료</span></div>
+        <span class="bar lg" style="display:block"><i style="width:56%"></i></span>
+      </div>
+      <div class="list">
+        <div class="sech"><span class="se">🥬</span><span class="sname">채소</span><span class="scount">2</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">대파</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">애호박</span></div>
+        <div class="sech"><span class="se">🥩</span><span class="sname">정육·계란</span><span class="scount">1</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">삼겹살 600g</span></div>
+        <div class="sech"><span class="se">🥛</span><span class="sname">유제품</span><span class="scount">1</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">우유</span><span class="qty">×2</span></div>
+        <div class="sech doneh"><span class="sname">완료</span><span class="scount">5</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">계란</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">양파</span><span class="qty">×2</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">두부</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">새우깡</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">화장지</span></div>
+      </div>
+      <div class="dock">
+        <div class="chips">
+          <span class="chip">🧃 오렌지주스</span>
+          <span class="chip">🍪 초코파이</span>
+          <span class="chip">🐟 고등어</span>
+          <span class="chip">🧻 물티슈</span>
+          <span class="chip">🧂 굴소스</span>
+        </div>
+        <div class="qbar">
+          <span class="qin">무엇을 살까요? (예: 우유 2)</span>
+          <span class="qbtn"><svg><use href="#i-plus"/></svg></span>
+        </div>
+      </div>
+      <div class="gesture"></div>
+    </div>
+  </section>
+
+  <!-- ═══════ 홈 · 다크 ═══════ -->
+  <section class="fw">
+    <div class="frame-label">홈 · 다크</div>
+    <div class="frame dark">
+      <div class="statusbar">
+        <span class="sb-time">9:41</span>
+        <span class="sb-right">
+          <span class="sig"><i></i><i></i><i></i><i></i></span>
+          <svg class="wifi"><use href="#i-wifi"/></svg>
+          <span class="batt"><i></i></span>
+        </span>
+      </div>
+      <div class="large-bar"><h2>장보기</h2></div>
+      <div class="cards">
+        <div class="card">
+          <div class="c-top"><span class="c-name">주말 장보기</span><span class="c-date">오늘</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:56%"></i></span><span class="c-count">5/9</span></div>
+          <div class="c-sub">4개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">이마트 특가전</span><span class="c-date">어제</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:100%"></i></span><span class="c-count">6/6</span></div>
+          <div class="c-sub done">완료 🎉</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">곱창전골 재료</span><span class="c-date">2일 전</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:29%"></i></span><span class="c-count">2/7</span></div>
+          <div class="c-sub">5개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">캠핑 간식</span><span class="c-date">4일 전</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:0%"></i></span><span class="c-count">0/5</span></div>
+          <div class="c-sub">5개 남음</div>
+        </div>
+        <div class="card">
+          <div class="c-top"><span class="c-name">생필품 보충</span><span class="c-date">6월 28일</span></div>
+          <div class="c-mid"><span class="bar"><i style="width:0%"></i></span><span class="c-count">0/0</span></div>
+          <div class="c-sub empty">비어 있음</div>
+        </div>
+      </div>
+      <div class="fab"><svg><use href="#i-plus"/></svg>새 목록</div>
+      <div class="gesture"></div>
+    </div>
+  </section>
+
+  <!-- ═══════ 리스트 상세 · 다크 ═══════ -->
+  <section class="fw">
+    <div class="frame-label">리스트 상세 · 다크</div>
+    <div class="frame dark">
+      <div class="statusbar">
+        <span class="sb-time">9:41</span>
+        <span class="sb-right">
+          <span class="sig"><i></i><i></i><i></i><i></i></span>
+          <svg class="wifi"><use href="#i-wifi"/></svg>
+          <span class="batt"><i></i></span>
+        </span>
+      </div>
+      <div class="appbar">
+        <span class="ibtn"><svg><use href="#i-back"/></svg></span>
+        <span class="ab-title">주말 장보기</span>
+        <span class="ibtn"><svg><use href="#i-share"/></svg></span>
+        <span class="ibtn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="phead">
+        <div class="ph-top"><span class="ph-big">4개 남았어요</span><span class="ph-count">5/9 완료</span></div>
+        <span class="bar lg" style="display:block"><i style="width:56%"></i></span>
+      </div>
+      <div class="list">
+        <div class="sech"><span class="se">🥬</span><span class="sname">채소</span><span class="scount">2</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">대파</span></div>
+        <div class="swipe">
+          <span class="swipe-bg"><svg><use href="#i-del"/></svg></span>
+          <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">애호박</span></div>
+        </div>
+        <div class="sech"><span class="se">🥩</span><span class="sname">정육·계란</span><span class="scount">1</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">삼겹살 600g</span></div>
+        <div class="sech"><span class="se">🥛</span><span class="sname">유제품</span><span class="scount">1</span></div>
+        <div class="row"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">우유</span><span class="qty">×2</span></div>
+        <div class="sech doneh"><span class="sname">완료</span><span class="scount">5</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">계란</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">양파</span><span class="qty">×2</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">두부</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">새우깡</span></div>
+        <div class="row done"><span class="chk"><svg><use href="#i-check"/></svg></span><span class="rname">화장지</span></div>
+      </div>
+      <div class="dock">
+        <div class="chips">
+          <span class="chip">🧃 오렌지주스</span>
+          <span class="chip">🍪 초코파이</span>
+          <span class="chip">🐟 고등어</span>
+          <span class="chip">🧻 물티슈</span>
+          <span class="chip">🧂 굴소스</span>
+        </div>
+        <div class="qbar">
+          <span class="qin">무엇을 살까요? (예: 우유 2)</span>
+          <span class="qbtn"><svg><use href="#i-plus"/></svg></span>
+        </div>
+      </div>
+      <div class="gesture"></div>
+    </div>
+    <div class="frame-note">* "애호박" 행은 스와이프 삭제(EndToStart) 진행 상태 예시 — errorContainer 배경 + Delete 아이콘.</div>
+  </section>
+
+</main>
+</body>
+</html>

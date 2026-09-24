@@ -1,0 +1,41 @@
+package com.minwoo.jangbogi.data
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import com.minwoo.jangbogi.domain.ListWithProgress
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface ShoppingListDao {
+
+    @Query(
+        """
+        SELECT l.*,
+               COUNT(i.id) AS totalCount,
+               COALESCE(SUM(CASE WHEN i.isChecked THEN 1 ELSE 0 END), 0) AS checkedCount
+        FROM shopping_lists AS l
+        LEFT JOIN shopping_items AS i ON i.listId = l.id
+        GROUP BY l.id
+        ORDER BY l.createdAt DESC
+        """
+    )
+    fun observeListsWithProgress(): Flow<List<ListWithProgress>>
+
+    @Query("SELECT * FROM shopping_lists WHERE id = :listId")
+    fun observeList(listId: Long): Flow<ShoppingList?>
+
+    @Query("SELECT * FROM shopping_lists WHERE id = :listId")
+    suspend fun getById(listId: Long): ShoppingList?
+
+    // IGNORE: undo 재삽입 시 id가 이미 재사용된 극단 케이스에서 크래시 대신 무시
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(list: ShoppingList): Long
+
+    @Query("UPDATE shopping_lists SET name = :name WHERE id = :listId")
+    suspend fun rename(listId: Long, name: String)
+
+    @Query("DELETE FROM shopping_lists WHERE id = :listId")
+    suspend fun deleteById(listId: Long)
+}

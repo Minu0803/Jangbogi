@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 흰 장보기 가방 + 체크 컷아웃(evenOdd 구멍). 전 요소 중앙 66dp safe zone 내. monochrome 겸용. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M36,50 A18,18 0 0 1 72,50 L66,50 A12,12 0 0 0 42,50 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M34,48 L74,48 C76.21,48 78,49.79 78,52 L78,71 C78,78.73 71.73,85 64,85 L44,85 C36.27,85 30,78.73 30,71 L30,52 C30,49.79 31.79,48 34,48 Z M51.5,75.5 L44.43,68.43 L48.67,64.19 L51.5,67.02 L59.99,58.53 L64.23,62.77 Z" />
+</vector>
