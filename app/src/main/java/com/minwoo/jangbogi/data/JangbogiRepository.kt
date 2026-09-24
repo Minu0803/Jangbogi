@@ -6,14 +6,15 @@ import com.minwoo.jangbogi.domain.Category
 import com.minwoo.jangbogi.domain.ListWithProgress
 import com.minwoo.jangbogi.domain.QuantityParser
 import com.minwoo.jangbogi.domain.Suggestion
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.Flow
 
 class JangbogiRepository(private val db: JangbogiDatabase) {
 
     private val listDao = db.shoppingListDao()
     private val itemDao = db.shoppingItemDao()
     private val historyDao = db.itemHistoryDao()
+    private val planDao = db.itemPlanDao()
 
     // undo 캐시: 연산별 마지막 1건, 소비 시 비움 (VM 재생성과 무관하게 유지되도록 repo 보관)
     private var deletedItem: ShoppingItem? = null
@@ -29,6 +30,27 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
     fun observeList(listId: Long): Flow<ShoppingList?> = listDao.observeList(listId)
 
     fun observeItems(listId: Long): Flow<List<ShoppingItem>> = itemDao.observeItems(listId)
+
+    fun observeItemsForPlanning(): Flow<List<PlannedShoppingItem>> = planDao.observeAll().map { plans ->
+        plans.map { plan ->
+            PlannedShoppingItem(
+                item = ShoppingItem(
+                    id = plan.id,
+                    listId = 0,
+                    name = plan.name,
+                    quantity = plan.quantity,
+                    category = plan.category,
+                    createdAt = 0,
+                    plannedBuyAt = plan.plannedBuyAt,
+                    preferredStore = plan.preferredStore,
+                    mustBuyBy = plan.mustBuyBy,
+                    stockUpMonth = plan.stockUpMonth,
+                    stockQuantity = plan.stockQuantity
+                ),
+                listName = ""
+            )
+        }
+    }
 
     fun observeSuggestions(listId: Long, query: String): Flow<List<Suggestion>> =
         historyDao.observeSuggestions(listId, query)
@@ -70,6 +92,7 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
         val now = System.currentTimeMillis()
         db.withTransaction {
             val history = historyDao.getByName(name)
+            val plan = planDao.getByName(name)
             val category = history?.category ?: Categorizer.categorize(name)
             val existing = itemDao.findByName(listId, name)
             when {
@@ -79,14 +102,28 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
                         name = name,
                         quantity = parsed.quantity,
                         category = category,
-                        createdAt = now
+                        createdAt = now,
+                        plannedBuyAt = plan?.plannedBuyAt,
+                        preferredStore = plan?.preferredStore,
+                        mustBuyBy = plan?.mustBuyBy,
+                        stockUpMonth = plan?.stockUpMonth,
+                        stockQuantity = plan?.stockQuantity ?: 0
                     )
                 )
                 !existing.isChecked -> itemDao.update(
                     existing.copy(quantity = existing.quantity + parsed.quantity)
                 )
                 else -> itemDao.update(
-                    existing.copy(isChecked = false, checkedAt = null, quantity = parsed.quantity)
+                    existing.copy(
+                        isChecked = false,
+                        checkedAt = null,
+                        quantity = parsed.quantity,
+                        plannedBuyAt = plan?.plannedBuyAt ?: existing.plannedBuyAt,
+                        preferredStore = plan?.preferredStore ?: existing.preferredStore,
+                        mustBuyBy = plan?.mustBuyBy ?: existing.mustBuyBy,
+                        stockUpMonth = plan?.stockUpMonth ?: existing.stockUpMonth,
+                        stockQuantity = plan?.stockQuantity ?: existing.stockQuantity
+                    )
                 )
             }
             if (historyDao.touch(name, now) == 0) {
@@ -127,6 +164,60 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
             itemDao.update(
                 item.copy(name = finalName, quantity = quantity.coerceIn(1, 99), category = category)
             )
+            if (category != item.category) historyDao.updateCategory(finalName, category)
+        }
+    }
+
+    suspend fun updateShoppingPlan(
+        name: String,
+        quantity: Int,
+        category: Category,
+        plannedBuyAt: Long?,
+        preferredStore: String,
+        mustBuyBy: Long?,
+        stockUpMonth: Int?,
+        stockQuantity: Int
+    ) {
+        val finalName = normalizeName(name)
+        if (finalName.isEmpty()) return
+        val finalStore = preferredStore.trim().ifEmpty { null }
+        val finalStock = stockQuantity.coerceIn(0, 99)
+        db.withTransaction {
+            itemDao.updatePlanFieldsByName(finalName, plannedBuyAt, finalStore, mustBuyBy, stockUpMonth, finalStock)
+            planDao.save(ItemPlan(0, finalName, quantity.coerceIn(1, 99), category, plannedBuyAt, finalStore, mustBuyBy, stockUpMonth, finalStock))
+        }
+    }
+
+    suspend fun updateItemAndPlan(
+        itemId: Long,
+        name: String,
+        quantity: Int,
+        category: Category,
+        plannedBuyAt: Long?,
+        preferredStore: String,
+        mustBuyBy: Long?,
+        stockUpMonth: Int?,
+        stockQuantity: Int
+    ) {
+        val finalName = normalizeName(name)
+        if (finalName.isEmpty()) return
+        db.withTransaction {
+            val item = itemDao.getById(itemId) ?: return@withTransaction
+            itemDao.update(
+                item.copy(
+                    name = finalName,
+                    quantity = quantity.coerceIn(1, 99),
+                    category = category,
+                    plannedBuyAt = plannedBuyAt,
+                    preferredStore = preferredStore.trim().ifEmpty { null },
+                    mustBuyBy = mustBuyBy,
+                    stockUpMonth = stockUpMonth,
+                    stockQuantity = stockQuantity.coerceIn(0, 99)
+                )
+            )
+            val finalStore = preferredStore.trim().ifEmpty { null }
+            val finalStock = stockQuantity.coerceIn(0, 99)
+            planDao.save(ItemPlan(0, finalName, quantity.coerceIn(1, 99), category, plannedBuyAt, finalStore, mustBuyBy, stockUpMonth, finalStock))
             if (category != item.category) historyDao.updateCategory(finalName, category)
         }
     }

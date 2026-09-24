@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
@@ -26,6 +30,8 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,18 +50,27 @@ import androidx.compose.ui.unit.dp
 import com.minwoo.jangbogi.R
 import com.minwoo.jangbogi.data.ShoppingItem
 import com.minwoo.jangbogi.domain.Category
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditItemSheet(
     item: ShoppingItem,
     onDismiss: () -> Unit,
-    onSave: (name: String, quantity: Int, category: Category) -> Unit,
-    onDelete: () -> Unit
+    onSave: (name: String, quantity: Int, category: Category, plannedBuyAt: Long?, preferredStore: String, mustBuyBy: Long?, stockUpMonth: Int?, stockQuantity: Int) -> Unit,
+    onDelete: () -> Unit,
+    allowDelete: Boolean = true
 ) {
     var name by remember(item.id) { mutableStateOf(item.name) }
     var quantity by remember(item.id) { mutableIntStateOf(item.quantity) }
     var category by remember(item.id) { mutableStateOf(item.category) }
+    var plannedBuyAt by remember(item.id) { mutableStateOf(item.plannedBuyAt) }
+    var mustBuyBy by remember(item.id) { mutableStateOf(item.mustBuyBy) }
+    var preferredStore by remember(item.id) { mutableStateOf(item.preferredStore.orEmpty()) }
+    var stockUpMonth by remember(item.id) { mutableStateOf(item.stockUpMonth) }
+    var stockQuantity by remember(item.id) { mutableIntStateOf(item.stockQuantity) }
+    var datePickerFor by remember { mutableStateOf<PlanDateField?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val decreaseDesc = stringResource(R.string.quantity_decrease)
     val increaseDesc = stringResource(R.string.quantity_increase)
@@ -66,6 +81,7 @@ fun EditItemSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
+                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -134,35 +150,127 @@ fun EditItemSheet(
                     }
                 }
             }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("구매 계획", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                PlanDateField(
+                    label = "언제 사면 좋을까요?",
+                    value = plannedBuyAt,
+                    onClick = { datePickerFor = PlanDateField.BUY }
+                )
+                OutlinedTextField(
+                    value = preferredStore,
+                    onValueChange = { preferredStore = it },
+                    label = { Text("주로 사는 곳") },
+                    placeholder = { Text("예: 동네 마트, 온라인") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                PlanDateField(
+                    label = "이 날짜 전에는 꼭 사요",
+                    value = mustBuyBy,
+                    onClick = { datePickerFor = PlanDateField.DEADLINE }
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("여유 있을 때 쟁일 달", style = MaterialTheme.typography.titleSmall)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        FilterChip(selected = stockUpMonth == null, onClick = { stockUpMonth = null }, label = { Text("미정") })
+                        (1..12).forEach { month ->
+                            FilterChip(
+                                selected = stockUpMonth == month,
+                                onClick = { stockUpMonth = month },
+                                label = { Text("${month}월") }
+                            )
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("집에 있는 수량", style = MaterialTheme.typography.titleSmall)
+                        Text("현재 비축분을 기록해요", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    FilledTonalIconButton(
+                        onClick = { stockQuantity = (stockQuantity - 1).coerceAtLeast(0) },
+                        enabled = stockQuantity > 0,
+                        modifier = Modifier.size(48.dp)
+                    ) { Text("−", style = MaterialTheme.typography.titleLarge) }
+                    Text(stockQuantity.toString(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 48.dp))
+                    FilledTonalIconButton(
+                        onClick = { stockQuantity = (stockQuantity + 1).coerceAtMost(99) },
+                        enabled = stockQuantity < 99,
+                        modifier = Modifier.size(48.dp)
+                    ) { Text("+", style = MaterialTheme.typography.titleLarge) }
+                }
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedButton(
-                    onClick = onDelete,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                if (allowDelete) {
+                    OutlinedButton(
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f).height(52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                    }
                 }
                 Button(
-                    onClick = { onSave(name.trim(), quantity, category) },
+                    onClick = { onSave(name.trim(), quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity) },
                     enabled = name.isNotBlank(),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
+                    modifier = Modifier.weight(if (allowDelete) 1f else 2f).height(52.dp)
                 ) {
                     Text(stringResource(R.string.save))
                 }
             }
         }
     }
+    datePickerFor?.let { field ->
+        val current = if (field == PlanDateField.BUY) plannedBuyAt else mustBuyBy
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = current ?: LocalDate.now().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+        DatePickerDialog(
+            onDismissRequest = { datePickerFor = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (field == PlanDateField.BUY) plannedBuyAt = pickerState.selectedDateMillis
+                    else mustBuyBy = pickerState.selectedDateMillis
+                    datePickerFor = null
+                }) { Text("선택") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        if (field == PlanDateField.BUY) plannedBuyAt = null else mustBuyBy = null
+                        datePickerFor = null
+                    }) { Text("날짜 지우기") }
+                    TextButton(onClick = { datePickerFor = null }) { Text("취소") }
+                }
+            }
+        ) { DatePicker(state = pickerState) }
+    }
+}
+
+private enum class PlanDateField { BUY, DEADLINE }
+
+@Composable
+private fun PlanDateField(label: String, value: Long?, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value?.let(::formatPlanDate) ?: "날짜 정하기", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+private fun formatPlanDate(value: Long): String {
+    val date = LocalDate.ofEpochDay(value / 86_400_000L)
+    return "${date.year}년 ${date.monthValue}월 ${date.dayOfMonth}일"
 }

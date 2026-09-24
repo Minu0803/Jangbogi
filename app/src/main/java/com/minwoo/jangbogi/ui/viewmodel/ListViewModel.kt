@@ -69,6 +69,22 @@ class ListViewModel(
         viewModelScope.launch { repo.updateItem(itemId, name, quantity, category) }
     }
 
+    fun updateItemAndPlan(
+        itemId: Long,
+        name: String,
+        quantity: Int,
+        category: Category,
+        plannedBuyAt: Long?,
+        preferredStore: String,
+        mustBuyBy: Long?,
+        stockUpMonth: Int?,
+        stockQuantity: Int
+    ) {
+        viewModelScope.launch {
+            repo.updateItemAndPlan(itemId, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+        }
+    }
+
     fun renameList(newName: String) {
         viewModelScope.launch { repo.renameList(listId, newName) }
     }

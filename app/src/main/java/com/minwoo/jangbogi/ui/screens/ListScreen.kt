@@ -287,8 +287,8 @@ fun ListScreen(listId: Long, onBack: () -> Unit) {
         EditItemSheet(
             item = item,
             onDismiss = { editTarget = null },
-            onSave = { name, quantity, category ->
-                vm.updateItem(item.id, name, quantity, category)
+            onSave = { name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity ->
+                vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
                 editTarget = null
             },
             onDelete = {

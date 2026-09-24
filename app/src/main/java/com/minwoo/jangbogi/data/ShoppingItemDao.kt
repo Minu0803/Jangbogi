@@ -5,7 +5,13 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import com.minwoo.jangbogi.domain.Category
 import kotlinx.coroutines.flow.Flow
+
+data class PlannedShoppingItem(
+    @androidx.room.Embedded val item: ShoppingItem,
+    val listName: String
+)
 
 @Dao
 interface ShoppingItemDao {
@@ -33,6 +39,12 @@ interface ShoppingItemDao {
 
     @Update
     suspend fun update(item: ShoppingItem)
+
+    @Query("UPDATE shopping_items SET quantity = :quantity, category = :category, plannedBuyAt = :plannedBuyAt, preferredStore = :preferredStore, mustBuyBy = :mustBuyBy, stockUpMonth = :stockUpMonth, stockQuantity = :stockQuantity WHERE name = :name")
+    suspend fun updatePlanByName(name: String, quantity: Int, category: Category, plannedBuyAt: Long?, preferredStore: String?, mustBuyBy: Long?, stockUpMonth: Int?, stockQuantity: Int)
+
+    @Query("UPDATE shopping_items SET plannedBuyAt = :plannedBuyAt, preferredStore = :preferredStore, mustBuyBy = :mustBuyBy, stockUpMonth = :stockUpMonth, stockQuantity = :stockQuantity WHERE name = :name")
+    suspend fun updatePlanFieldsByName(name: String, plannedBuyAt: Long?, preferredStore: String?, mustBuyBy: Long?, stockUpMonth: Int?, stockQuantity: Int)
 
     @Query("DELETE FROM shopping_items WHERE id = :itemId")
     suspend fun deleteById(itemId: Long)

@@ -1,6 +1,7 @@
 package com.minwoo.jangbogi.data
 
 import androidx.room.Entity
+import androidx.room.ColumnInfo
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -26,5 +27,10 @@ data class ShoppingItem(
     val category: Category = Category.ETC,
     val isChecked: Boolean = false,
     val createdAt: Long,
-    val checkedAt: Long? = null
+    val checkedAt: Long? = null,
+    val plannedBuyAt: Long? = null,
+    val preferredStore: String? = null,
+    val mustBuyBy: Long? = null,
+    val stockUpMonth: Int? = null,
+    @ColumnInfo(defaultValue = "0") val stockQuantity: Int = 0
 )

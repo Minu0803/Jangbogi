@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.room.Room
 import com.minwoo.jangbogi.data.JangbogiDatabase
 import com.minwoo.jangbogi.data.JangbogiRepository
+import com.minwoo.jangbogi.data.MIGRATION_1_2
 import com.minwoo.jangbogi.ui.viewmodel.HomeViewModel
 import com.minwoo.jangbogi.ui.viewmodel.ListViewModel
 
@@ -24,7 +25,7 @@ class AppContainer(context: Context) {
         context.applicationContext,
         JangbogiDatabase::class.java,
         "jangbogi.db"
-    ).build()
+    ).addMigrations(MIGRATION_1_2).build()
 
     private val repository = JangbogiRepository(database)
 

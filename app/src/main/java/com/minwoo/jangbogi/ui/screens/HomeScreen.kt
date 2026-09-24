@@ -20,6 +20,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -48,7 +49,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(onOpenList: (Long) -> Unit) {
+fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit) {
     val app = LocalContext.current.applicationContext as JangbogiApp
     val vm: HomeViewModel = viewModel(factory = app.container.homeViewModelFactory())
     val lists by vm.lists.collectAsStateWithLifecycle()
@@ -72,6 +73,9 @@ fun HomeScreen(onOpenList: (Long) -> Unit) {
             LargeTopAppBar(
                 title = {
                     Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
+                },
+                actions = {
+                    TextButton(onClick = onOpenPlan) { Text("살림 계획") }
                 },
                 scrollBehavior = scrollBehavior
             )
