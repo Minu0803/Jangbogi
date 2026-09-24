@@ -6,8 +6,9 @@ import com.minwoo.jangbogi.domain.Category
 import com.minwoo.jangbogi.domain.ListWithProgress
 import com.minwoo.jangbogi.domain.QuantityParser
 import com.minwoo.jangbogi.domain.Suggestion
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class JangbogiRepository(private val db: JangbogiDatabase) {
 
@@ -31,26 +32,35 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
 
     fun observeItems(listId: Long): Flow<List<ShoppingItem>> = itemDao.observeItems(listId)
 
-    fun observeItemsForPlanning(): Flow<List<PlannedShoppingItem>> = planDao.observeAll().map { plans ->
-        plans.map { plan ->
-            PlannedShoppingItem(
-                item = ShoppingItem(
-                    id = plan.id,
-                    listId = 0,
-                    name = plan.name,
-                    quantity = plan.quantity,
-                    category = plan.category,
-                    createdAt = 0,
-                    plannedBuyAt = plan.plannedBuyAt,
-                    preferredStore = plan.preferredStore,
-                    mustBuyBy = plan.mustBuyBy,
-                    stockUpMonth = plan.stockUpMonth,
-                    stockQuantity = plan.stockQuantity
-                ),
-                listName = ""
-            )
+    fun observeItemsForPlanning(): Flow<List<PlannedShoppingItem>> =
+        combine(itemDao.observeAllWithListName(), planDao.observeAll()) { items, plans ->
+            val listedNames = items.mapTo(mutableSetOf()) { it.item.name }
+            val listedItems = items.map { row ->
+                PlannedShoppingItem(item = row.item, listName = row.listName)
+            }
+            val unlistedPlans = plans
+                .filterNot { it.name in listedNames }
+                .map { plan ->
+                    PlannedShoppingItem(
+                        item = ShoppingItem(
+                            id = plan.id,
+                            listId = 0,
+                            name = plan.name,
+                            quantity = plan.quantity,
+                            category = plan.category,
+                            createdAt = 0,
+                            plannedBuyAt = plan.plannedBuyAt,
+                            preferredStore = plan.preferredStore,
+                            mustBuyBy = plan.mustBuyBy,
+                            stockUpMonth = plan.stockUpMonth,
+                            stockQuantity = plan.stockQuantity
+                        ),
+                        listName = ""
+                    )
+                }
+            // 계획만 저장해 둔 품목도 장보기 목록에서 삭제되지 않도록 함께 보여준다.
+            listedItems + unlistedPlans
         }
-    }
 
     fun observeSuggestions(listId: Long, query: String): Flow<List<Suggestion>> =
         historyDao.observeSuggestions(listId, query)

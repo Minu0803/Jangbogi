@@ -13,8 +13,23 @@ data class PlannedShoppingItem(
     val listName: String
 )
 
+data class ShoppingItemWithListName(
+    @androidx.room.Embedded val item: ShoppingItem,
+    val listName: String
+)
+
 @Dao
 interface ShoppingItemDao {
+
+    @Query(
+        """
+        SELECT shopping_items.*, shopping_lists.name AS listName
+        FROM shopping_items
+        INNER JOIN shopping_lists ON shopping_lists.id = shopping_items.listId
+        ORDER BY shopping_lists.createdAt DESC, shopping_items.createdAt, shopping_items.name COLLATE NOCASE
+        """
+    )
+    fun observeAllWithListName(): Flow<List<ShoppingItemWithListName>>
 
     @Query("SELECT * FROM shopping_items WHERE listId = :listId")
     fun observeItems(listId: Long): Flow<List<ShoppingItem>>

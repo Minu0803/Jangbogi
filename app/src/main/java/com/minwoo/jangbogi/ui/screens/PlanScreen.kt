@@ -128,7 +128,11 @@ fun PlanScreen(onBack: () -> Unit) {
             item = item,
             onDismiss = { editTarget = null },
             onSave = { name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity ->
-                vm.updateShoppingPlan(name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+                if (item.listId > 0) {
+                    vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+                } else {
+                    vm.updateShoppingPlan(name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+                }
                 editTarget = null
             },
             onDelete = { editTarget = null },
