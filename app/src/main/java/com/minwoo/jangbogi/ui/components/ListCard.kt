@@ -20,6 +20,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,14 +60,10 @@ fun ListCard(
 ) {
     val haptic = LocalHapticFeedback.current
     var menuExpanded by remember { mutableStateOf(false) }
-    val isLight = MaterialTheme.colorScheme.surface.luminance() > 0.5f
     Box(modifier) {
         Card(
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceCard),
-            border = if (isLight) {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
-            } else null,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
@@ -77,7 +75,7 @@ fun ListCard(
                             menuExpanded = true
                         }
                     )
-                    .padding(horizontal = 18.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -93,8 +91,11 @@ fun ListCard(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "${entry.list.name} 더보기")
+                    }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LinearProgressIndicator(
                         progress = {
@@ -104,7 +105,7 @@ fun ListCard(
                         strokeCap = StrokeCap.Round,
                         modifier = Modifier
                             .weight(1f)
-                            .height(8.dp)
+                            .height(4.dp)
                             .clip(RoundedCornerShape(4.dp))
                     )
                     Spacer(Modifier.width(10.dp))
@@ -120,11 +121,13 @@ fun ListCard(
                 val done = entry.totalCount > 0 && entry.checkedCount == entry.totalCount
                 Text(
                     text = when {
-                        entry.totalCount == 0 -> stringResource(R.string.list_empty_label)
-                        done -> stringResource(R.string.list_done_label)
+                        entry.totalCount == 0 && entry.consideringCount == 0 -> stringResource(R.string.list_empty_label)
+                        entry.totalCount == 0 -> "고민 중 ${entry.consideringCount}개"
+                        done && entry.consideringCount == 0 -> stringResource(R.string.list_done_label)
+                        done -> "살 것은 완료 · 고민 중 ${entry.consideringCount}개"
                         else -> stringResource(
                             R.string.list_remaining_label, entry.totalCount - entry.checkedCount
-                        )
+                        ) + if (entry.consideringCount > 0) " · 고민 중 ${entry.consideringCount}개" else ""
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (done) FontWeight.Bold else null,

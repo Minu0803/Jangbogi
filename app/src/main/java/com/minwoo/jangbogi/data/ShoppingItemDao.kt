@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.Flow
 data class PlannedShoppingItem(
     @androidx.room.Embedded val item: ShoppingItem,
     val listName: String
-)
+) {
+    val stableKey: String get() = if (item.listId == 0L) "plan:${item.id}" else "item:${item.id}"
+}
 
 data class ShoppingItemWithListName(
     @androidx.room.Embedded val item: ShoppingItem,
@@ -42,6 +44,9 @@ interface ShoppingItemDao {
 
     @Query("SELECT * FROM shopping_items WHERE listId = :listId")
     suspend fun getAllOnce(listId: Long): List<ShoppingItem>
+
+    @Query("SELECT * FROM shopping_items WHERE listId = :listId AND name = :name AND id != :exceptId LIMIT 1")
+    suspend fun findOtherByName(listId: Long, name: String, exceptId: Long): ShoppingItem?
 
     @Query("SELECT * FROM shopping_items WHERE listId = :listId AND isChecked = 1")
     suspend fun getCompletedOnce(listId: Long): List<ShoppingItem>

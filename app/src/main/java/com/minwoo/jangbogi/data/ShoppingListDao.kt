@@ -13,8 +13,9 @@ interface ShoppingListDao {
     @Query(
         """
         SELECT l.*,
-               COUNT(i.id) AS totalCount,
-               COALESCE(SUM(CASE WHEN i.isChecked THEN 1 ELSE 0 END), 0) AS checkedCount
+               COALESCE(SUM(CASE WHEN i.purchaseIntent = 'BUY' THEN 1 ELSE 0 END), 0) AS totalCount,
+               COALESCE(SUM(CASE WHEN i.purchaseIntent = 'BUY' AND i.isChecked THEN 1 ELSE 0 END), 0) AS checkedCount,
+               COALESCE(SUM(CASE WHEN i.purchaseIntent = 'CONSIDER' THEN 1 ELSE 0 END), 0) AS consideringCount
         FROM shopping_lists AS l
         LEFT JOIN shopping_items AS i ON i.listId = l.id
         GROUP BY l.id
@@ -28,6 +29,12 @@ interface ShoppingListDao {
 
     @Query("SELECT * FROM shopping_lists WHERE id = :listId")
     suspend fun getById(listId: Long): ShoppingList?
+
+    @Query("SELECT id FROM shopping_lists ORDER BY createdAt DESC, id DESC LIMIT 1")
+    suspend fun mostRecentId(): Long?
+
+    @Query("SELECT l.id FROM shopping_lists l WHERE EXISTS (SELECT 1 FROM shopping_items i WHERE i.listId = l.id AND i.purchaseIntent = 'BUY' AND i.isChecked = 0) ORDER BY l.createdAt DESC, l.id DESC LIMIT 1")
+    suspend fun mostRecentActiveId(): Long?
 
     // IGNORE: undo 재삽입 시 id가 이미 재사용된 극단 케이스에서 크래시 대신 무시
     @Insert(onConflict = OnConflictStrategy.IGNORE)

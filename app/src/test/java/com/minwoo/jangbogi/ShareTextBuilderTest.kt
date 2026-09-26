@@ -3,10 +3,20 @@ package com.minwoo.jangbogi
 import com.minwoo.jangbogi.data.ShoppingItem
 import com.minwoo.jangbogi.domain.Category
 import com.minwoo.jangbogi.domain.ShareTextBuilder
+import com.minwoo.jangbogi.domain.PurchaseIntent
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ShareTextBuilderTest {
+    @Test fun `고민 중인 물건은 기본 공유에서 빠진다`() {
+        val items = listOf(
+            ShoppingItem(id = 1, listId = 1, name = "우유", createdAt = 1, purchaseIntent = PurchaseIntent.BUY),
+            ShoppingItem(id = 2, listId = 1, name = "아보카도", createdAt = 2, purchaseIntent = PurchaseIntent.CONSIDER)
+        )
+        val text = ShareTextBuilder.build("주말 장보기", items)
+        assertEquals(false, text.contains("아보카도"))
+        assertEquals(true, text.contains("남은 1개 · 전체 1개"))
+    }
 
     private fun item(
         id: Long,

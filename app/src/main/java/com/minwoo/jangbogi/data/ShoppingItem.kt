@@ -6,6 +6,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.minwoo.jangbogi.domain.Category
+import com.minwoo.jangbogi.domain.PurchaseIntent
 
 @Entity(
     tableName = "shopping_items",
@@ -32,5 +33,6 @@ data class ShoppingItem(
     val preferredStore: String? = null,
     val mustBuyBy: Long? = null,
     val stockUpMonth: Int? = null,
-    @ColumnInfo(defaultValue = "0") val stockQuantity: Int = 0
+    @ColumnInfo(defaultValue = "0") val stockQuantity: Int = 0,
+    @ColumnInfo(defaultValue = "'BUY'") val purchaseIntent: PurchaseIntent = PurchaseIntent.BUY
 )

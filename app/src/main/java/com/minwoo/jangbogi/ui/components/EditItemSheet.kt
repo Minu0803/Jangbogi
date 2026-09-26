@@ -61,7 +61,8 @@ fun EditItemSheet(
     onDismiss: () -> Unit,
     onSave: (name: String, quantity: Int, category: Category, plannedBuyAt: Long?, preferredStore: String, mustBuyBy: Long?, stockUpMonth: Int?, stockQuantity: Int) -> Unit,
     onDelete: () -> Unit,
-    allowDelete: Boolean = true
+    allowDelete: Boolean = true,
+    showPlanInitially: Boolean = false
 ) {
     var name by remember(item.id) { mutableStateOf(item.name) }
     var quantity by remember(item.id) { mutableIntStateOf(item.quantity) }
@@ -72,6 +73,8 @@ fun EditItemSheet(
     var stockUpMonth by remember(item.id) { mutableStateOf(item.stockUpMonth) }
     var stockQuantity by remember(item.id) { mutableIntStateOf(item.stockQuantity) }
     var datePickerFor by remember { mutableStateOf<PlanDateField?>(null) }
+    var showCategories by remember(item.id) { mutableStateOf(false) }
+    var showPlan by remember(item.id) { mutableStateOf(showPlanInitially) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val decreaseDesc = stringResource(R.string.quantity_decrease)
     val increaseDesc = stringResource(R.string.quantity_increase)
@@ -135,24 +138,34 @@ fun EditItemSheet(
             Column {
                 Text(
                     text = stringResource(R.string.category_label),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.titleSmall
                 )
-                Spacer(Modifier.height(8.dp))
-                FlowRow(
+                TextButton(onClick = { showCategories = !showCategories }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(category.display, color = MaterialTheme.colorScheme.onSurface)
+                        Text(if (showCategories) "접기" else "변경")
+                    }
+                }
+                if (showCategories) FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Category.entries.forEach { c ->
                         FilterChip(
                             selected = category == c,
-                            onClick = { category = c },
-                            label = { Text("${c.emoji} ${c.display}") }
+                            onClick = { category = c; showCategories = false },
+                            label = { Text(c.display) }
                         )
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("구매 계획", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            TextButton(onClick = { showPlan = !showPlan }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("구매 계획 · 재고", color = MaterialTheme.colorScheme.onSurface)
+                    Text(if (showPlan) "접기" else "펼치기")
+                }
+            }
+            if (showPlan) Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 PlanDateField(
                     label = "언제 사면 좋을까요?",
                     value = plannedBuyAt,

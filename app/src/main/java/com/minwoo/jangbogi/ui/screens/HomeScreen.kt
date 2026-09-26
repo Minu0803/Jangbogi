@@ -13,6 +13,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
@@ -49,14 +52,13 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit) {
+fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit, onBack: () -> Unit) {
     val app = LocalContext.current.applicationContext as JangbogiApp
     val vm: HomeViewModel = viewModel(factory = app.container.homeViewModelFactory())
     val lists by vm.lists.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var showCreateDialog by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<ListWithProgress?>(null) }
@@ -66,18 +68,20 @@ fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit) {
     val undoLabel = stringResource(R.string.undo)
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = Modifier.fillMaxSize(),
         topBar = {
-            LargeTopAppBar(
+            TopAppBar(
                 title = {
-                    Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold)
+                    Text("목록 관리", fontWeight = FontWeight.Bold)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "장보기로 돌아가기")
+                    }
                 },
                 actions = {
                     TextButton(onClick = onOpenPlan) { Text("살림 계획") }
-                },
-                scrollBehavior = scrollBehavior
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -93,9 +97,9 @@ fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit) {
     ) { padding ->
         if (lists.isEmpty()) {
             EmptyState(
-                emoji = "🛒",
-                title = stringResource(R.string.home_empty_title),
-                subtitle = stringResource(R.string.home_empty_subtitle),
+                emoji = "",
+                title = "아직 저장한 목록이 없어요",
+                subtitle = "뒤로 가서 첫 물건부터 담아보세요",
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
@@ -105,7 +109,7 @@ fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(lists, key = { it.list.id }) { entry ->

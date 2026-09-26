@@ -28,11 +28,11 @@ interface ItemHistoryDao {
         SELECT * FROM item_history
         WHERE (:query = '' OR name LIKE '%' || :query || '%')
           AND name NOT IN (
-              SELECT name FROM shopping_items WHERE listId = :listId AND isChecked = 0
+              SELECT name FROM shopping_items WHERE listId = :listId AND isChecked = 0 AND purchaseIntent = :intent
           )
         ORDER BY useCount DESC, lastUsedAt DESC
         LIMIT 10
         """
     )
-    fun observeSuggestions(listId: Long, query: String): Flow<List<ItemHistory>>
+    fun observeSuggestions(listId: Long, query: String, intent: com.minwoo.jangbogi.domain.PurchaseIntent): Flow<List<ItemHistory>>
 }

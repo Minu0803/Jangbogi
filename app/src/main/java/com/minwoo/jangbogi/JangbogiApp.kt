@@ -8,8 +8,12 @@ import androidx.room.Room
 import com.minwoo.jangbogi.data.JangbogiDatabase
 import com.minwoo.jangbogi.data.JangbogiRepository
 import com.minwoo.jangbogi.data.MIGRATION_1_2
+import com.minwoo.jangbogi.data.MIGRATION_2_3
 import com.minwoo.jangbogi.ui.viewmodel.HomeViewModel
 import com.minwoo.jangbogi.ui.viewmodel.ListViewModel
+import com.minwoo.jangbogi.ui.viewmodel.ShoppingHomeViewModel
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.createSavedStateHandle
 
 class JangbogiApp : Application() {
     lateinit var container: AppContainer
@@ -25,7 +29,7 @@ class AppContainer(context: Context) {
         context.applicationContext,
         JangbogiDatabase::class.java,
         "jangbogi.db"
-    ).addMigrations(MIGRATION_1_2).build()
+    ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
 
     private val repository = JangbogiRepository(database)
 
@@ -40,6 +44,13 @@ class AppContainer(context: Context) {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             @Suppress("UNCHECKED_CAST")
             return ListViewModel(repository, listId) as T
+        }
+    }
+
+    fun shoppingHomeViewModelFactory(): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: androidx.lifecycle.viewmodel.CreationExtras): T {
+            @Suppress("UNCHECKED_CAST")
+            return ShoppingHomeViewModel(repository, extras.createSavedStateHandle()) as T
         }
     }
 }

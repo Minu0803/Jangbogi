@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.minwoo.jangbogi.JangbogiApp
 import com.minwoo.jangbogi.data.PlannedShoppingItem
 import com.minwoo.jangbogi.data.ShoppingItem
+import com.minwoo.jangbogi.domain.PurchaseIntent
 import com.minwoo.jangbogi.ui.components.EditItemSheet
 import com.minwoo.jangbogi.ui.theme.surfaceCard
 import com.minwoo.jangbogi.ui.viewmodel.HomeViewModel
@@ -54,7 +55,8 @@ fun PlanScreen(onBack: () -> Unit) {
     var editTarget by remember { mutableStateOf<ShoppingItem?>(null) }
     val today = LocalDate.now()
     val soon = entries.count { entry ->
-        entry.item.mustBuyBy?.let { dateFromMillis(it) }?.let { !it.isBefore(today) && !it.isAfter(today.plusDays(7)) } == true
+        entry.item.purchaseIntent == PurchaseIntent.BUY &&
+            entry.item.mustBuyBy?.let { dateFromMillis(it) }?.let { !it.isBefore(today) && !it.isAfter(today.plusDays(7)) } == true
     }
     val stocked = entries.count { it.item.stockQuantity > 0 }
     val stockup = entries.count { it.item.stockUpMonth != null }
@@ -109,7 +111,7 @@ fun PlanScreen(onBack: () -> Unit) {
                     }
                 }
             } else {
-                items(entries, key = { it.item.id }) { entry ->
+                items(entries, key = { it.stableKey }) { entry ->
                     PlanItemCard(
                         entry = entry,
                         onEdit = { editTarget = entry.item },
@@ -136,7 +138,8 @@ fun PlanScreen(onBack: () -> Unit) {
                 editTarget = null
             },
             onDelete = { editTarget = null },
-            allowDelete = false
+            allowDelete = false,
+            showPlanInitially = true
         )
     }
 }
@@ -167,7 +170,7 @@ private fun PlanItemCard(entry: PlannedShoppingItem, onEdit: () -> Unit, onStock
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("${item.category.emoji} ${item.name}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "${entry.listName.takeIf { it.isNotBlank() }?.let { "$it · " }.orEmpty()}${item.quantity}개 살 예정",
+                        "${entry.listName.takeIf { it.isNotBlank() }?.let { "$it · " }.orEmpty()}${if (item.purchaseIntent == PurchaseIntent.CONSIDER) "고민 중" else "${item.quantity}개 살 예정"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

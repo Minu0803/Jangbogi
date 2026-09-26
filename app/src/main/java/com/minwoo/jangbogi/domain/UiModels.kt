@@ -8,7 +8,8 @@ import com.minwoo.jangbogi.data.ShoppingList
 data class ListWithProgress(
     @Embedded val list: ShoppingList,
     val totalCount: Int,
-    val checkedCount: Int
+    val checkedCount: Int,
+    val consideringCount: Int = 0
 )
 
 data class CategorySection(
@@ -25,6 +26,7 @@ data class ListUiState(
     val listName: String = "",
     val sections: List<CategorySection> = emptyList(),
     val completedItems: List<ShoppingItem> = emptyList(),
+    val consideringItems: List<ShoppingItem> = emptyList(),
     val totalCount: Int = 0,
     val checkedCount: Int = 0,
     val isLoading: Boolean = true

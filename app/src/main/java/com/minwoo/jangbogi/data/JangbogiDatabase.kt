@@ -7,16 +7,25 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [ShoppingList::class, ShoppingItem::class, ItemHistory::class, ItemPlan::class],
-    version = 2,
-    exportSchema = false
+    entities = [ShoppingList::class, ShoppingItem::class, ItemHistory::class, ItemPlan::class, ShoppingSession::class],
+    version = 3,
+    exportSchema = true
 )
-@TypeConverters(CategoryConverter::class)
+@TypeConverters(CategoryConverter::class, PurchaseIntentConverter::class)
 abstract class JangbogiDatabase : RoomDatabase() {
     abstract fun shoppingListDao(): ShoppingListDao
     abstract fun shoppingItemDao(): ShoppingItemDao
     abstract fun itemHistoryDao(): ItemHistoryDao
     abstract fun itemPlanDao(): ItemPlanDao
+    abstract fun shoppingSessionDao(): ShoppingSessionDao
+}
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE shopping_items ADD COLUMN purchaseIntent TEXT NOT NULL DEFAULT 'BUY'")
+        db.execSQL("CREATE TABLE IF NOT EXISTS shopping_session (id INTEGER NOT NULL PRIMARY KEY, activeListId INTEGER, FOREIGN KEY(activeListId) REFERENCES shopping_lists(id) ON UPDATE NO ACTION ON DELETE SET NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_shopping_session_activeListId ON shopping_session(activeListId)")
+    }
 }
 
 val MIGRATION_1_2 = object : Migration(1, 2) {

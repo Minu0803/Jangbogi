@@ -6,9 +6,13 @@ import com.minwoo.jangbogi.domain.Category
 import com.minwoo.jangbogi.domain.ListWithProgress
 import com.minwoo.jangbogi.domain.QuantityParser
 import com.minwoo.jangbogi.domain.Suggestion
+import com.minwoo.jangbogi.domain.PurchaseIntent
+import com.minwoo.jangbogi.domain.PurchaseIntentRules
+import com.minwoo.jangbogi.domain.ActiveListSelector
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 
 class JangbogiRepository(private val db: JangbogiDatabase) {
 
@@ -16,11 +20,14 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
     private val itemDao = db.shoppingItemDao()
     private val historyDao = db.itemHistoryDao()
     private val planDao = db.itemPlanDao()
+    private val sessionDao = db.shoppingSessionDao()
 
     // undo 캐시: 연산별 마지막 1건, 소비 시 비움 (VM 재생성과 무관하게 유지되도록 repo 보관)
     private var deletedItem: ShoppingItem? = null
     private var deletedList: Pair<ShoppingList, List<ShoppingItem>>? = null
     private var clearedCompleted: List<ShoppingItem>? = null
+    private var nextUndoId = 1L
+    private val usedUndoIds = mutableSetOf<Long>()
 
     private val whitespace = Regex("""\s+""")
 
@@ -29,6 +36,33 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
     fun observeListsWithProgress(): Flow<List<ListWithProgress>> = listDao.observeListsWithProgress()
 
     fun observeList(listId: Long): Flow<ShoppingList?> = listDao.observeList(listId)
+
+    suspend fun resolveActiveListId(): Long? = db.withTransaction {
+        val saved = sessionDao.getActiveListId()
+        val current = ActiveListSelector.choose(saved, listDao.observeListsWithProgress().first())
+        if (saved != current) sessionDao.save(ShoppingSession(activeListId = current))
+        current
+    }
+
+    suspend fun selectList(listId: Long): Boolean = db.withTransaction {
+        if (listDao.getById(listId) == null) return@withTransaction false
+        sessionDao.save(ShoppingSession(activeListId = listId))
+        true
+    }
+
+    suspend fun addToNewList(rawInput: String, intent: PurchaseIntent, defaultName: String): Long? {
+        if (QuantityParser.parse(rawInput).name.isEmpty()) return null
+        return db.withTransaction {
+            val listId = listDao.insert(
+                ShoppingList(name = normalizeName(defaultName).ifEmpty { "내 장보기" }, createdAt = System.currentTimeMillis())
+            )
+            require(listId > 0)
+            val result = addItem(listId, rawInput, intent)
+            check(result == AddItemResult.Added)
+            sessionDao.save(ShoppingSession(activeListId = listId))
+            listId
+        }
+    }
 
     fun observeItems(listId: Long): Flow<List<ShoppingItem>> = itemDao.observeItems(listId)
 
@@ -62,8 +96,8 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
             listedItems + unlistedPlans
         }
 
-    fun observeSuggestions(listId: Long, query: String): Flow<List<Suggestion>> =
-        historyDao.observeSuggestions(listId, query)
+    fun observeSuggestions(listId: Long, query: String, intent: PurchaseIntent = PurchaseIntent.BUY): Flow<List<Suggestion>> =
+        historyDao.observeSuggestions(listId, query, intent)
             .map { rows -> rows.map { Suggestion(it.name, it.category) } }
 
     suspend fun createList(name: String): Long {
@@ -94,18 +128,17 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
         }
     }
 
-    /** @return 실제로 추가/갱신됐으면 true (이름이 비면 false) */
-    suspend fun addItem(listId: Long, rawInput: String): Boolean {
+    suspend fun addItem(listId: Long, rawInput: String, intent: PurchaseIntent = PurchaseIntent.BUY): AddItemResult {
         val parsed = QuantityParser.parse(rawInput)
         val name = parsed.name
-        if (name.isEmpty()) return false
+        if (name.isEmpty()) return AddItemResult.EmptyInput
         val now = System.currentTimeMillis()
-        db.withTransaction {
+        return db.withTransaction {
             val history = historyDao.getByName(name)
             val plan = planDao.getByName(name)
             val category = history?.category ?: Categorizer.categorize(name)
             val existing = itemDao.findByName(listId, name)
-            when {
+            val result = when {
                 existing == null -> itemDao.insert(
                     ShoppingItem(
                         listId = listId,
@@ -117,14 +150,18 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
                         preferredStore = plan?.preferredStore,
                         mustBuyBy = plan?.mustBuyBy,
                         stockUpMonth = plan?.stockUpMonth,
-                        stockQuantity = plan?.stockQuantity ?: 0
+                        stockQuantity = plan?.stockQuantity ?: 0,
+                        purchaseIntent = intent
                     )
-                )
-                !existing.isChecked -> itemDao.update(
-                    existing.copy(quantity = existing.quantity + parsed.quantity)
-                )
-                else -> itemDao.update(
-                    existing.copy(
+                ).let { AddItemResult.Added }
+                existing.purchaseIntent != intent -> AddItemResult.OtherIntent(existing.id, existing.purchaseIntent)
+                !existing.isChecked && existing.quantity + parsed.quantity > 99 -> AddItemResult.QuantityLimit
+                !existing.isChecked -> {
+                    itemDao.update(existing.copy(quantity = existing.quantity + parsed.quantity))
+                    AddItemResult.Merged
+                }
+                else -> {
+                    itemDao.update(existing.copy(
                         isChecked = false,
                         checkedAt = null,
                         quantity = parsed.quantity,
@@ -133,25 +170,45 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
                         mustBuyBy = plan?.mustBuyBy ?: existing.mustBuyBy,
                         stockUpMonth = plan?.stockUpMonth ?: existing.stockUpMonth,
                         stockQuantity = plan?.stockQuantity ?: existing.stockQuantity
-                    )
-                )
+                    ))
+                    AddItemResult.Reopened
+                }
             }
-            if (historyDao.touch(name, now) == 0) {
+            if (result !is AddItemResult.OtherIntent && result != AddItemResult.QuantityLimit && historyDao.touch(name, now) == 0) {
                 historyDao.insert(ItemHistory(name = name, category = category, useCount = 1, lastUsedAt = now))
             }
+            result
         }
-        return true
     }
 
     suspend fun toggleItem(itemId: Long) {
         val item = itemDao.getById(itemId) ?: return
-        val nowChecked = !item.isChecked
-        itemDao.update(
-            item.copy(
-                isChecked = nowChecked,
-                checkedAt = if (nowChecked) System.currentTimeMillis() else null
-            )
-        )
+        if (item.purchaseIntent == PurchaseIntent.CONSIDER) return
+        itemDao.update(PurchaseIntentRules.toggle(item, System.currentTimeMillis()))
+    }
+
+    suspend fun moveItem(itemId: Long, intent: PurchaseIntent): ItemMutationResult = db.withTransaction {
+        val before = itemDao.getById(itemId) ?: return@withTransaction ItemMutationResult.Missing
+        if (before.purchaseIntent == intent) return@withTransaction ItemMutationResult.NoChange
+        val after = PurchaseIntentRules.move(before, intent)
+        itemDao.update(after)
+        ItemMutationResult.Applied(UndoToken(nextUndoId++, before, after))
+    }
+
+    suspend fun deleteItemWithUndo(itemId: Long): ItemMutationResult = db.withTransaction {
+        val before = itemDao.getById(itemId) ?: return@withTransaction ItemMutationResult.Missing
+        itemDao.deleteById(itemId)
+        ItemMutationResult.Applied(UndoToken(nextUndoId++, before, null))
+    }
+
+    suspend fun undoMutation(token: UndoToken): UndoResult = db.withTransaction {
+        if (token.id in usedUndoIds) return@withTransaction UndoResult.CONFLICT
+        if (listDao.getById(token.before.listId) == null) return@withTransaction UndoResult.MISSING_PARENT
+        val current = itemDao.getById(token.before.id)
+        if (current != token.after) return@withTransaction UndoResult.CONFLICT
+        usedUndoIds += token.id
+        if (current == null) itemDao.insert(token.before) else itemDao.update(token.before)
+        UndoResult.RESTORED
     }
 
     suspend fun deleteItem(itemId: Long) {

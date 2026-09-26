@@ -5,7 +5,7 @@ import com.minwoo.jangbogi.data.ShoppingItem
 object ItemOrganizer {
 
     fun sections(items: List<ShoppingItem>): List<CategorySection> {
-        val unchecked = items.filterNot { it.isChecked }
+        val unchecked = items.filter { it.purchaseIntent == PurchaseIntent.BUY && !it.isChecked }
         return Category.entries.mapNotNull { category ->
             val matched = unchecked
                 .filter { it.category == category }
@@ -15,6 +15,10 @@ object ItemOrganizer {
     }
 
     fun completed(items: List<ShoppingItem>): List<ShoppingItem> =
-        items.filter { it.isChecked }
+        items.filter { it.purchaseIntent == PurchaseIntent.BUY && it.isChecked }
             .sortedByDescending { it.checkedAt ?: Long.MIN_VALUE }
+
+    fun considering(items: List<ShoppingItem>): List<ShoppingItem> =
+        items.filter { it.purchaseIntent == PurchaseIntent.CONSIDER }
+            .sortedWith(compareBy({ it.createdAt }, { it.id }))
 }
