@@ -56,6 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -94,6 +96,7 @@ fun ShoppingContent(
     var moreExpanded by remember { mutableStateOf(false) }
     val remaining = state.totalCount - state.checkedCount
     val focusManager = LocalFocusManager.current
+    val compactActions = LocalConfiguration.current.screenWidthDp < 340 || LocalDensity.current.fontScale >= 1.5f
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -113,18 +116,28 @@ fun ShoppingContent(
                             Icon(Icons.Rounded.Share, contentDescription = "살 것만 공유")
                         }
                     }
-                    TextButton(onClick = onOpenPlan) { Text("살림 계획", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    if (onClearCompleted != null) {
+                    if (!compactActions) {
+                        TextButton(onClick = onOpenPlan) { Text("살림 계획", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                    if (compactActions || onClearCompleted != null) {
                         Box {
                             IconButton(onClick = { moreExpanded = true }) {
-                                Icon(Icons.Rounded.MoreVert, contentDescription = "목록 더보기")
+                                Icon(Icons.Rounded.MoreVert, contentDescription = "더보기")
                             }
                             DropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("완료 항목 비우기") },
-                                    enabled = state.completedItems.isNotEmpty(),
-                                    onClick = { moreExpanded = false; onClearCompleted() }
-                                )
+                                if (compactActions) {
+                                    DropdownMenuItem(
+                                        text = { Text("살림 계획") },
+                                        onClick = { moreExpanded = false; onOpenPlan() }
+                                    )
+                                }
+                                if (onClearCompleted != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("완료 항목 비우기") },
+                                        enabled = state.completedItems.isNotEmpty(),
+                                        onClick = { moreExpanded = false; onClearCompleted() }
+                                    )
+                                }
                             }
                         }
                     }
@@ -170,7 +183,13 @@ fun ShoppingContent(
                     OutlinedTextField(
                         value = query,
                         onValueChange = onQueryChange,
-                        placeholder = { Text(if (selectedIntent == PurchaseIntent.BUY) "살 물건을 적어보세요" else "고민되는 물건을 적어보세요") },
+                        placeholder = {
+                            Text(
+                                if (selectedIntent == PurchaseIntent.BUY) "살 물건 입력" else "고민되는 물건",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

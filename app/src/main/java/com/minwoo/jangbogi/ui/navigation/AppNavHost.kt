@@ -29,11 +29,11 @@ fun AppNavHost() {
                 onManageLists = { navController.navigate("home") }
             )
         }
-        composable(route = "home") {
-            val shoppingEntry = remember(navController) { navController.getBackStackEntry("shopping") }
+        composable(route = "home") { entry ->
+            val shoppingEntry = remember(entry) { navController.getBackStackEntry("shopping") }
             val shoppingVm: ShoppingHomeViewModel = viewModel(shoppingEntry, factory = app.container.shoppingHomeViewModelFactory())
             HomeScreen(
-                onOpenList = { listId -> shoppingVm.selectList(listId); navController.popBackStack() },
+                onOpenList = { listId -> shoppingVm.selectList(listId) { navController.popBackStack() } },
                 onOpenPlan = { navController.navigate("plan") },
                 onBack = { navController.popBackStack() }
             )

@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.minwoo.jangbogi.data.JangbogiRepository
 import com.minwoo.jangbogi.domain.ListWithProgress
 import com.minwoo.jangbogi.data.PlannedShoppingItem
+import com.minwoo.jangbogi.data.UpdateItemResult
+import com.minwoo.jangbogi.data.DeletedListToken
 import com.minwoo.jangbogi.domain.Category
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,12 +33,12 @@ class HomeViewModel(private val repo: JangbogiRepository) : ViewModel() {
         viewModelScope.launch { repo.renameList(listId, newName) }
     }
 
-    fun deleteList(listId: Long) {
-        viewModelScope.launch { repo.deleteList(listId) }
+    fun deleteList(listId: Long, onDeleted: (DeletedListToken?) -> Unit) {
+        viewModelScope.launch { onDeleted(repo.deleteList(listId)) }
     }
 
-    fun undoDeleteList() {
-        viewModelScope.launch { repo.undoDeleteList() }
+    fun undoDeleteList(token: DeletedListToken, onRestored: (Boolean) -> Unit) {
+        viewModelScope.launch { onRestored(repo.undoDeleteList(token)) }
     }
 
     fun updateShoppingPlan(
@@ -63,10 +65,15 @@ class HomeViewModel(private val repo: JangbogiRepository) : ViewModel() {
         preferredStore: String,
         mustBuyBy: Long?,
         stockUpMonth: Int?,
-        stockQuantity: Int
+        stockQuantity: Int,
+        onResult: (UpdateItemResult) -> Unit
     ) {
         viewModelScope.launch {
-            repo.updateItemAndPlan(itemId, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+            try {
+                onResult(repo.updateItemAndPlan(itemId, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity))
+            } catch (_: Exception) {
+                onResult(UpdateItemResult.FAILED)
+            }
         }
     }
 }

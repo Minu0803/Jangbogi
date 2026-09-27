@@ -150,14 +150,19 @@ fun HomeScreen(onOpenList: (Long) -> Unit, onOpenPlan: () -> Unit, onBack: () ->
             message = stringResource(R.string.delete_list_message, target.list.name),
             confirmLabel = stringResource(R.string.delete),
             onConfirm = {
-                vm.deleteList(target.list.id)
-                scope.launch {
-                    val result = snackbarHostState.showSnackbar(
-                        message = deletedMsg,
-                        actionLabel = undoLabel,
-                        duration = SnackbarDuration.Short
-                    )
-                    if (result == SnackbarResult.ActionPerformed) vm.undoDeleteList()
+                vm.deleteList(target.list.id) { token ->
+                    if (token != null) scope.launch {
+                        val result = snackbarHostState.showSnackbar(
+                            message = deletedMsg,
+                            actionLabel = undoLabel,
+                            duration = SnackbarDuration.Short
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            vm.undoDeleteList(token) { restored ->
+                                if (!restored) scope.launch { snackbarHostState.showSnackbar("목록을 되돌릴 수 없어요") }
+                            }
+                        }
+                    }
                 }
             },
             onDismiss = { deleteTarget = null }

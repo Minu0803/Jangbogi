@@ -17,8 +17,9 @@ android {
         applicationId = "com.minwoo.jangbogi"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "1.1.2"
+        versionCode = 5
+        versionName = "1.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -61,5 +62,7 @@ dependencies {
     ksp(libs.room.compiler)
     implementation(libs.core.splashscreen)
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.junit)
     debugImplementation(libs.compose.ui.tooling)
 }

@@ -21,15 +21,22 @@ class ShoppingHomeViewModel(
 ) : ViewModel() {
     private val _activeListId = MutableStateFlow<Long?>(null)
     val activeListId: StateFlow<Long?> = _activeListId.asStateFlow()
+    private val _selectionEpoch = MutableStateFlow(0L)
+    val selectionEpoch: StateFlow<Long> = _selectionEpoch.asStateFlow()
+    private val _entryIntent = MutableStateFlow(PurchaseIntent.BUY)
+    val entryIntent: StateFlow<PurchaseIntent> = _entryIntent.asStateFlow()
     private val _loading = MutableStateFlow(true)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
-    private val _draft = MutableStateFlow(false)
+    private val _draft = MutableStateFlow(savedState["draft"] ?: false)
     val draft: StateFlow<Boolean> = _draft.asStateFlow()
     private val _draftQuery = MutableStateFlow(savedState["draft_query"] ?: "")
     val draftQuery: StateFlow<String> = _draftQuery.asStateFlow()
-    private val _draftIntent = MutableStateFlow(PurchaseIntent.BUY)
+    private val _draftIntent = MutableStateFlow(
+        savedState.get<String>("draft_intent")?.let { runCatching { PurchaseIntent.valueOf(it) }.getOrNull() }
+            ?: PurchaseIntent.BUY
+    )
     val draftIntent: StateFlow<PurchaseIntent> = _draftIntent.asStateFlow()
-    private val _draftName = MutableStateFlow("내 장보기")
+    private val _draftName = MutableStateFlow(savedState["draft_name"] ?: "내 장보기")
     val draftName: StateFlow<String> = _draftName.asStateFlow()
     private var adding = false
 
@@ -42,39 +49,68 @@ class ShoppingHomeViewModel(
             _loading.value = false
             repo.observeListsWithProgress().collect { entries ->
                 val active = _activeListId.value
-                if (!_draft.value && active != null && entries.none { it.list.id == active }) {
+                if (active != null && entries.none { it.list.id == active }) {
                     _activeListId.value = repo.resolveActiveListId()
                 }
             }
         }
     }
 
-    fun selectList(listId: Long) {
+    fun selectList(listId: Long, onSelected: () -> Unit = {}) {
         viewModelScope.launch {
             if (repo.selectList(listId)) {
+                _entryIntent.value = PurchaseIntent.BUY
                 _draft.value = false
+                savedState["draft"] = false
                 _activeListId.value = listId
+                _selectionEpoch.value += 1
+                onSelected()
             }
         }
     }
 
     fun startNewDraft() {
         val date = LocalDate.now()
-        _draftName.value = "${date.monthValue}월 ${date.dayOfMonth}일 장보기"
+        val baseName = "${date.monthValue}월 ${date.dayOfMonth}일 장보기"
+        var name = baseName
+        var suffix = 2
+        while (lists.value.any { it.list.name == name }) {
+            name = "$baseName ($suffix)"
+            suffix++
+        }
+        _draftName.value = name
+        savedState["draft_name"] = _draftName.value
         _draftQuery.value = ""
         savedState["draft_query"] = ""
         _draftIntent.value = PurchaseIntent.BUY
+        savedState["draft_intent"] = PurchaseIntent.BUY.name
         _draft.value = true
+        savedState["draft"] = true
     }
 
-    fun cancelNewDraft() { _draft.value = false }
+    fun cancelNewDraft() {
+        viewModelScope.launch {
+            _loading.value = true
+            try {
+                _activeListId.value = repo.resolveActiveListId()
+                _entryIntent.value = PurchaseIntent.BUY
+                _draft.value = false
+                savedState["draft"] = false
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
 
     fun setDraftQuery(value: String) {
         _draftQuery.value = value
         savedState["draft_query"] = value
     }
 
-    fun setDraftIntent(value: PurchaseIntent) { _draftIntent.value = value }
+    fun setDraftIntent(value: PurchaseIntent) {
+        _draftIntent.value = value
+        savedState["draft_intent"] = value.name
+    }
 
     fun savedQuery(listId: Long): String = savedState["query_$listId"] ?: ""
 
@@ -88,9 +124,11 @@ class ShoppingHomeViewModel(
                 val id = repo.addToNewList(input, _draftIntent.value, _draftName.value)
                 if (id == null) onError("물건 이름을 적어주세요")
                 else {
+                    _entryIntent.value = _draftIntent.value
                     _draftQuery.value = ""
                     savedState["draft_query"] = ""
                     _draft.value = false
+                    savedState["draft"] = false
                     _activeListId.value = id
                 }
             } catch (_: Exception) {

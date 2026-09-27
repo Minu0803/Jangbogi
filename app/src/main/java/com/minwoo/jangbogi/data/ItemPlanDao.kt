@@ -16,4 +16,7 @@ interface ItemPlanDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun save(plan: ItemPlan): Long
+
+    @Query("DELETE FROM item_plans WHERE name = :name")
+    suspend fun deleteByName(name: String)
 }

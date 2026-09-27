@@ -7,6 +7,8 @@ import com.minwoo.jangbogi.data.AddItemResult
 import com.minwoo.jangbogi.data.ItemMutationResult
 import com.minwoo.jangbogi.data.UndoToken
 import com.minwoo.jangbogi.data.UndoResult
+import com.minwoo.jangbogi.data.UpdateItemResult
+import com.minwoo.jangbogi.data.ClearedCompletedToken
 import com.minwoo.jangbogi.domain.Category
 import com.minwoo.jangbogi.domain.ItemOrganizer
 import com.minwoo.jangbogi.domain.ListUiState
@@ -115,10 +117,15 @@ class ListViewModel(
         preferredStore: String,
         mustBuyBy: Long?,
         stockUpMonth: Int?,
-        stockQuantity: Int
+        stockQuantity: Int,
+        onResult: (UpdateItemResult) -> Unit
     ) {
         viewModelScope.launch {
-            repo.updateItemAndPlan(itemId, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+            try {
+                onResult(repo.updateItemAndPlan(itemId, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity))
+            } catch (_: Exception) {
+                onResult(UpdateItemResult.FAILED)
+            }
         }
     }
 
@@ -126,12 +133,26 @@ class ListViewModel(
         viewModelScope.launch { repo.renameList(listId, newName) }
     }
 
-    fun clearCompleted() {
-        viewModelScope.launch { repo.clearCompleted(listId) }
+    fun clearCompleted(onResult: (ClearedCompletedToken?) -> Unit) {
+        viewModelScope.launch {
+            val token = try {
+                repo.clearCompleted(listId)
+            } catch (_: Exception) {
+                null
+            }
+            onResult(token)
+        }
     }
 
-    fun undoClearCompleted() {
-        viewModelScope.launch { repo.undoClearCompleted() }
+    fun undoClearCompleted(token: ClearedCompletedToken, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val restored = try {
+                repo.undoClearCompleted(token) == UndoResult.RESTORED
+            } catch (_: Exception) {
+                false
+            }
+            onResult(restored)
+        }
     }
 
     fun buildShareText(): String {

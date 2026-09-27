@@ -28,7 +28,8 @@ interface ItemHistoryDao {
         SELECT * FROM item_history
         WHERE (:query = '' OR name LIKE '%' || :query || '%')
           AND name NOT IN (
-              SELECT name FROM shopping_items WHERE listId = :listId AND isChecked = 0 AND purchaseIntent = :intent
+              SELECT name FROM shopping_items
+              WHERE listId = :listId AND (isChecked = 0 OR purchaseIntent != :intent)
           )
         ORDER BY useCount DESC, lastUsedAt DESC
         LIMIT 10

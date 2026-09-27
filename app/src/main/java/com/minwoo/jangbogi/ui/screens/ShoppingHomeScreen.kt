@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.minwoo.jangbogi.domain.ListUiState
 import com.minwoo.jangbogi.domain.PurchaseIntent
@@ -23,6 +24,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ShoppingHomeScreen(vm: ShoppingHomeViewModel, onOpenPlan: () -> Unit, onManageLists: () -> Unit) {
     val activeId by vm.activeListId.collectAsStateWithLifecycle()
+    val selectionEpoch by vm.selectionEpoch.collectAsStateWithLifecycle()
+    val entryIntent by vm.entryIntent.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val draft by vm.draft.collectAsStateWithLifecycle()
     val draftName by vm.draftName.collectAsStateWithLifecycle()
@@ -32,14 +35,18 @@ fun ShoppingHomeScreen(vm: ShoppingHomeViewModel, onOpenPlan: () -> Unit, onMana
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showLists by remember { mutableStateOf(false) }
+    BackHandler(enabled = draft && activeId != null && !showLists) { vm.cancelNewDraft() }
 
+    val currentListId = activeId
     if (loading) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-    } else if (activeId != null && !draft) {
+    } else if (currentListId != null && !draft) {
         ListScreen(
-            listId = activeId!!,
-            initialQuery = vm.savedQuery(activeId!!),
-            onSaveQuery = { vm.saveQuery(activeId!!, it) },
+            listId = currentListId,
+            selectionEpoch = selectionEpoch,
+            entryIntent = entryIntent,
+            initialQuery = vm.savedQuery(currentListId),
+            onSaveQuery = { vm.saveQuery(currentListId, it) },
             onOpenLists = { showLists = true },
             onOpenPlan = onOpenPlan
         )
@@ -65,9 +72,10 @@ fun ShoppingHomeScreen(vm: ShoppingHomeViewModel, onOpenPlan: () -> Unit, onMana
     if (showLists) ListSwitcherSheet(
         lists = lists,
         activeListId = if (draft) null else activeId,
-        onSelect = { vm.selectList(it); showLists = false },
+        onSelect = { vm.selectList(it) { showLists = false } },
         onNewList = { vm.startNewDraft(); showLists = false },
         onManage = { showLists = false; onManageLists() },
+        onCancelDraft = if (draft && activeId != null) ({ vm.cancelNewDraft(); showLists = false }) else null,
         onDismiss = { showLists = false }
     )
 }

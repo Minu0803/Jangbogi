@@ -16,6 +16,7 @@ import com.minwoo.jangbogi.data.AddItemResult
 import com.minwoo.jangbogi.data.ItemMutationResult
 import com.minwoo.jangbogi.data.ShoppingItem
 import com.minwoo.jangbogi.data.UndoToken
+import com.minwoo.jangbogi.data.UpdateItemResult
 import com.minwoo.jangbogi.domain.PurchaseIntent
 import com.minwoo.jangbogi.ui.components.ConfirmDialog
 import com.minwoo.jangbogi.ui.components.EditItemSheet
@@ -29,6 +30,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun ListScreen(
     listId: Long,
+    selectionEpoch: Long,
+    entryIntent: PurchaseIntent,
     initialQuery: String,
     onSaveQuery: (String) -> Unit,
     onOpenLists: () -> Unit,
@@ -44,9 +47,13 @@ fun ListScreen(
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var editTarget by remember(listId) { mutableStateOf<ShoppingItem?>(null) }
+    var editError by remember(listId) { mutableStateOf<String?>(null) }
     var clearCompleted by remember(listId) { mutableStateOf(false) }
 
-    LaunchedEffect(listId) { vm.onQueryChange(initialQuery) }
+    LaunchedEffect(listId, selectionEpoch, entryIntent) {
+        vm.selectIntent(entryIntent)
+        vm.onQueryChange(initialQuery)
+    }
 
     fun info(message: String) { scope.launch { snackbar.showSnackbar(message) } }
 
@@ -80,14 +87,17 @@ fun ListScreen(
                     AddItemResult.EmptyInput -> Unit
                     AddItemResult.QuantityLimit -> info("수량은 99개까지 담을 수 있어요")
                     AddItemResult.Failed -> info("저장하지 못했어요. 다시 시도해 주세요")
-                    is AddItemResult.OtherIntent -> info(
-                        if (result.intent == PurchaseIntent.BUY) "이미 살 것에 있어요" else "이미 고민 중에 있어요"
-                    )
+                    is AddItemResult.OtherIntent -> scope.launch {
+                        val message = if (result.intent == PurchaseIntent.BUY) "이미 살 것에 있어요" else "이미 고민 중에 있어요"
+                        if (snackbar.showSnackbar(message, actionLabel = "보기", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) {
+                            vm.selectIntent(result.intent)
+                        }
+                    }
                 }
             }
         },
         onToggle = vm::toggleItem,
-        onEdit = { editTarget = it },
+        onEdit = { editError = null; editTarget = it },
         onDelete = ::removeItem,
         onMove = { id, target ->
             vm.moveItem(id, target) { result ->
@@ -114,10 +124,15 @@ fun ListScreen(
             message = "구매 완료한 물건 ${state.completedItems.size}개를 비울까요?",
             confirmLabel = "비우기",
             onConfirm = {
-                vm.clearCompleted()
-                scope.launch {
-                    val result = snackbar.showSnackbar("완료 항목을 비웠어요", actionLabel = "실행 취소", duration = SnackbarDuration.Short)
-                    if (result == SnackbarResult.ActionPerformed) vm.undoClearCompleted()
+                vm.clearCompleted { token ->
+                    if (token == null) {
+                        info("비울 완료 항목이 없거나 비우지 못했어요")
+                    } else scope.launch {
+                        val result = snackbar.showSnackbar("완료 항목을 비웠어요", actionLabel = "실행 취소", duration = SnackbarDuration.Short)
+                        if (result == SnackbarResult.ActionPerformed) vm.undoClearCompleted(token) { restored ->
+                            if (!restored) info("되돌릴 수 없어요. 목록이 변경되었는지 확인해 주세요")
+                        }
+                    }
                 }
                 clearCompleted = false
             },
@@ -127,10 +142,18 @@ fun ListScreen(
     editTarget?.let { item ->
         EditItemSheet(
             item = item,
+            errorMessage = editError,
             onDismiss = { editTarget = null },
             onSave = { name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity ->
-                vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
-                editTarget = null
+                vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity) { result ->
+                    when (result) {
+                        UpdateItemResult.UPDATED -> editTarget = null
+                        UpdateItemResult.DUPLICATE_NAME -> editError = "이 목록에 같은 이름의 물건이 있어요"
+                        UpdateItemResult.INVALID_NAME -> editError = "물건 이름을 적어주세요"
+                        UpdateItemResult.MISSING -> { editTarget = null; info("이 물건을 찾을 수 없어요") }
+                        UpdateItemResult.FAILED -> editError = "저장하지 못했어요. 다시 시도해 주세요"
+                    }
+                }
             },
             onDelete = { editTarget = null; removeItem(item.id) }
         )

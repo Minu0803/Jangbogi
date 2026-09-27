@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.minwoo.jangbogi.domain.Category
+import com.minwoo.jangbogi.domain.PurchaseIntent
 import kotlinx.coroutines.flow.Flow
 
 data class PlannedShoppingItem(
@@ -42,11 +43,17 @@ interface ShoppingItemDao {
     @Query("SELECT * FROM shopping_items WHERE listId = :listId AND name = :name LIMIT 1")
     suspend fun findByName(listId: Long, name: String): ShoppingItem?
 
+    @Query("SELECT * FROM shopping_items WHERE listId = :listId AND name = :name AND purchaseIntent = :intent ORDER BY id LIMIT 1")
+    suspend fun findByNameAndIntent(listId: Long, name: String, intent: PurchaseIntent): ShoppingItem?
+
     @Query("SELECT * FROM shopping_items WHERE listId = :listId")
     suspend fun getAllOnce(listId: Long): List<ShoppingItem>
 
     @Query("SELECT * FROM shopping_items WHERE listId = :listId AND name = :name AND id != :exceptId LIMIT 1")
     suspend fun findOtherByName(listId: Long, name: String, exceptId: Long): ShoppingItem?
+
+    @Query("SELECT COUNT(*) FROM shopping_items WHERE name = :name")
+    suspend fun countByName(name: String): Int
 
     @Query("SELECT * FROM shopping_items WHERE listId = :listId AND isChecked = 1")
     suspend fun getCompletedOnce(listId: Long): List<ShoppingItem>

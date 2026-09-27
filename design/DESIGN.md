@@ -1,5 +1,7 @@
 # 장보기 UI 디자인 확정 스펙 (DESIGN.md)
 
+> 이 문서는 v1.1.x 화면의 기록입니다. v1.2.0의 장보기 시작 화면과 ‘살 것 / 고민 중’ 동선은 [2026-09-26 개편 설계](../docs/superpowers/specs/2026-09-26-shopping-first-ux-design.md)를 따릅니다.
+
 - 작성: UI Designer · 2026-07-11
 - 근거: CONTRACT.md 6·7·8·9절. 이 문서의 수치가 **확정값**이다 (9절 기준 메트릭에서 확정한 값 포함).
 - 시각 레퍼런스: `design/mockup.html` (홈+상세 × 라이트/다크, 390×844, 1dp=1px)

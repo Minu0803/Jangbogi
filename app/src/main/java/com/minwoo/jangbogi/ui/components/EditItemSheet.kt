@@ -62,7 +62,8 @@ fun EditItemSheet(
     onSave: (name: String, quantity: Int, category: Category, plannedBuyAt: Long?, preferredStore: String, mustBuyBy: Long?, stockUpMonth: Int?, stockQuantity: Int) -> Unit,
     onDelete: () -> Unit,
     allowDelete: Boolean = true,
-    showPlanInitially: Boolean = false
+    showPlanInitially: Boolean = false,
+    errorMessage: String? = null
 ) {
     var name by remember(item.id) { mutableStateOf(item.name) }
     var quantity by remember(item.id) { mutableIntStateOf(item.quantity) }
@@ -217,6 +218,9 @@ fun EditItemSheet(
                         modifier = Modifier.size(48.dp)
                     ) { Text("+", style = MaterialTheme.typography.titleLarge) }
                 }
+            }
+            if (errorMessage != null) {
+                Text(errorMessage, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

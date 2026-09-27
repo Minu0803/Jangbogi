@@ -21,3 +21,9 @@ sealed interface ItemMutationResult {
 }
 
 enum class UndoResult { RESTORED, CONFLICT, MISSING_PARENT }
+
+enum class UpdateItemResult { UPDATED, DUPLICATE_NAME, INVALID_NAME, MISSING, FAILED }
+
+data class DeletedListToken(val list: ShoppingList, val items: List<ShoppingItem>)
+
+data class ClearedCompletedToken(val id: Long, val listId: Long, val items: List<ShoppingItem>)

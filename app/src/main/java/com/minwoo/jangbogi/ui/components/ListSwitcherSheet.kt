@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +29,13 @@ fun ListSwitcherSheet(
     onSelect: (Long) -> Unit,
     onNewList: () -> Unit,
     onManage: () -> Unit,
+    onCancelDraft: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                .navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text("내 장보기 목록", style = MaterialTheme.typography.titleLarge,
@@ -54,6 +58,11 @@ fun ListSwitcherSheet(
             }
             TextButton(onClick = onNewList, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
                 Text("＋ 새 목록으로 시작하기")
+            }
+            if (onCancelDraft != null) {
+                TextButton(onClick = onCancelDraft, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                    Text("기존 목록으로 돌아가기")
+                }
             }
             if (lists.isNotEmpty()) {
                 TextButton(onClick = onManage, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {

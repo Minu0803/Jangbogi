@@ -19,6 +19,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -27,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.minwoo.jangbogi.JangbogiApp
 import com.minwoo.jangbogi.data.PlannedShoppingItem
 import com.minwoo.jangbogi.data.ShoppingItem
+import com.minwoo.jangbogi.data.UpdateItemResult
 import com.minwoo.jangbogi.domain.PurchaseIntent
 import com.minwoo.jangbogi.ui.components.EditItemSheet
 import com.minwoo.jangbogi.ui.theme.surfaceCard
@@ -45,6 +49,7 @@ import com.minwoo.jangbogi.ui.viewmodel.HomeViewModel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.launch
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,6 +58,10 @@ fun PlanScreen(onBack: () -> Unit) {
     val vm: HomeViewModel = viewModel(factory = app.container.homeViewModelFactory())
     val entries by vm.plannedItems.collectAsStateWithLifecycle()
     var editTarget by remember { mutableStateOf<ShoppingItem?>(null) }
+    var editError by remember { mutableStateOf<String?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    fun info(message: String) { scope.launch { snackbar.showSnackbar(message) } }
     val today = LocalDate.now()
     val soon = entries.count { entry ->
         entry.item.purchaseIntent == PurchaseIntent.BUY &&
@@ -62,6 +71,7 @@ fun PlanScreen(onBack: () -> Unit) {
     val stockup = entries.count { it.item.stockUpMonth != null }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = { Text("살림 계획", fontWeight = FontWeight.Bold) },
@@ -114,7 +124,7 @@ fun PlanScreen(onBack: () -> Unit) {
                 items(entries, key = { it.stableKey }) { entry ->
                     PlanItemCard(
                         entry = entry,
-                        onEdit = { editTarget = entry.item },
+                        onEdit = { editError = null; editTarget = entry.item },
                         onStockChange = { value ->
                             val item = entry.item
                             vm.updateShoppingPlan(item.name, item.quantity, item.category, item.plannedBuyAt, item.preferredStore.orEmpty(), item.mustBuyBy, item.stockUpMonth, value)
@@ -128,14 +138,23 @@ fun PlanScreen(onBack: () -> Unit) {
     editTarget?.let { item ->
         EditItemSheet(
             item = item,
+            errorMessage = editError,
             onDismiss = { editTarget = null },
             onSave = { name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity ->
                 if (item.listId > 0) {
-                    vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+                    vm.updateItemAndPlan(item.id, name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity) { result ->
+                        when (result) {
+                            UpdateItemResult.UPDATED -> editTarget = null
+                            UpdateItemResult.DUPLICATE_NAME -> editError = "이 목록에 같은 이름의 물건이 있어요"
+                            UpdateItemResult.INVALID_NAME -> editError = "물건 이름을 적어주세요"
+                            UpdateItemResult.MISSING -> { editTarget = null; info("이 물건을 찾을 수 없어요") }
+                            UpdateItemResult.FAILED -> editError = "저장하지 못했어요. 다시 시도해 주세요"
+                        }
+                    }
                 } else {
                     vm.updateShoppingPlan(name, quantity, category, plannedBuyAt, preferredStore, mustBuyBy, stockUpMonth, stockQuantity)
+                    editTarget = null
                 }
-                editTarget = null
             },
             onDelete = { editTarget = null },
             allowDelete = false,
