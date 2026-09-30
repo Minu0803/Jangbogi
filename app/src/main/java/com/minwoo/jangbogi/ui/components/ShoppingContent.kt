@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Share
@@ -59,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -94,7 +96,8 @@ fun ShoppingContent(
     onOpenPlan: () -> Unit,
     onShare: (() -> Unit)? = null,
     onClearCompleted: (() -> Unit)? = null,
-    onDecide: (ShoppingItem) -> Unit = {}
+    onDecide: (ShoppingItem) -> Unit = {},
+    onBackToStores: (() -> Unit)? = null
 ) {
     var showCompleted by remember(state.listName) { mutableStateOf(false) }
     var moreExpanded by remember { mutableStateOf(false) }
@@ -107,6 +110,11 @@ fun ShoppingContent(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    if (onBackToStores != null) IconButton(onClick = onBackToStores) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "마트 홈으로")
+                    }
+                },
                 title = {
                     TextButton(onClick = onOpenLists, modifier = Modifier.heightIn(min = 48.dp)) {
                         Text(state.listName.ifBlank { "내 장보기" }, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -198,7 +206,7 @@ fun ShoppingContent(
                         shape = RoundedCornerShape(18.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { if (query.isNotBlank()) onAdd(query) }),
-                        modifier = Modifier.weight(1f).heightIn(min = 56.dp)
+                        modifier = Modifier.weight(1f).heightIn(min = 56.dp).testTag("quick-add-input")
                     )
                     Button(
                         onClick = { onAdd(query) },

@@ -20,7 +20,7 @@ class UpgradeFixtureTest {
         var listId = preferences.getLong("list", 0)
         try {
             if (mode != "verify") {
-                if (mode == "seed") assertEquals("1.2.0", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
+                if (mode == "seed") assertEquals(InstrumentationRegistry.getArguments().getString("sourceVersion") ?: "1.2.0", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
                 listId = repo.createList("APK 업데이트 검증")
                 repo.selectList(listId)
                 repo.addItem(listId, "update-milk 3", PurchaseIntent.BUY)
@@ -33,7 +33,7 @@ class UpgradeFixtureTest {
                     Category.ETC, 1_800_000_000_000, "동네 마트", 1_801_000_000_000, 10, 2))
                 assertTrue(preferences.edit().putLong("list", listId).commit())
             }
-            if (mode == "verify") assertEquals("1.3.0", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
+            if (mode == "verify") assertEquals("1.4.0", context.packageManager.getPackageInfo(context.packageName, 0).versionName)
             assertEquals(listId, repo.resolveActiveListId())
             val dao = db.shoppingItemDao()
             assertEquals(3, dao.getAllOnce(listId).size)

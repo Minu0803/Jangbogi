@@ -40,6 +40,9 @@ class DecisionAppFlowTest {
             createdAt = 3, preferredStore = "동네 마트", stockQuantity = 1, purchaseIntent = PurchaseIntent.CONSIDER))
         before = requireNotNull(dao.getById(id))
         scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("store-home-list").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithTag("store-home-list").performScrollToNode(hasTestTag("store-$listId"))
+        compose.onNodeWithTag("store-$listId").performClick()
         compose.waitUntil(5_000) { compose.onAllNodesWithText("고민 중 1").fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -73,7 +76,7 @@ class DecisionAppFlowTest {
         capture("home")
         if (InstrumentationRegistry.getArguments().getString("captureExtras") == "true") {
             compose.onNodeWithText("이번 주 장보기").performClick()
-            compose.onNodeWithText("내 장보기 목록").assertIsDisplayed()
+            compose.onNodeWithText("다른 마트에서 장보기").assertIsDisplayed()
             capture("lists")
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             compose.onNodeWithText("살림 계획").performClick()

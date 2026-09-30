@@ -106,6 +106,16 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
         return listDao.insert(ShoppingList(name = finalName, createdAt = System.currentTimeMillis()))
     }
 
+    suspend fun createStore(name: String): Long {
+        require(normalizeName(name).isNotEmpty())
+        return db.withTransaction {
+            val id = createList(name)
+            check(id > 0)
+            sessionDao.save(ShoppingSession(activeListId = id))
+            id
+        }
+    }
+
     suspend fun renameList(listId: Long, newName: String) {
         val finalName = normalizeName(newName)
         if (finalName.isNotEmpty()) listDao.rename(listId, finalName)

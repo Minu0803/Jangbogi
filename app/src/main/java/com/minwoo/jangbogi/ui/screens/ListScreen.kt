@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
 import com.minwoo.jangbogi.JangbogiApp
 import com.minwoo.jangbogi.data.AddItemResult
 import com.minwoo.jangbogi.data.ItemMutationResult
@@ -39,7 +41,8 @@ fun ListScreen(
     initialQuery: String,
     onSaveQuery: (String) -> Unit,
     onOpenLists: () -> Unit,
-    onOpenPlan: () -> Unit
+    onOpenPlan: () -> Unit,
+    onBackToStores: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as JangbogiApp
@@ -48,6 +51,7 @@ fun ListScreen(
     val decision by vm.decisionSession.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val query by vm.query.collectAsStateWithLifecycle()
     val intent by vm.selectedIntent.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
@@ -85,7 +89,13 @@ fun ListScreen(
         query = query,
         suggestions = suggestions,
         snackbarHostState = snackbar,
-        onQueryChange = { vm.onQueryChange(it); onSaveQuery(it) },
+        onQueryChange = {
+            // A disposed Compose text field can emit its old buffer on blur during recreation.
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                vm.onQueryChange(it)
+                onSaveQuery(it)
+            }
+        },
         onSelectIntent = vm::selectIntent,
         onAdd = { raw ->
             vm.addItem(raw) { result ->
@@ -115,6 +125,7 @@ fun ListScreen(
         },
         onOpenLists = onOpenLists,
         onOpenPlan = onOpenPlan,
+        onBackToStores = onBackToStores,
         onShare = {
             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"

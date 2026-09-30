@@ -34,9 +34,9 @@ class AppContainer(context: Context) {
     private val repository = JangbogiRepository(database)
 
     fun homeViewModelFactory(): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        override fun <T : ViewModel> create(modelClass: Class<T>, extras: androidx.lifecycle.viewmodel.CreationExtras): T {
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(repository) as T
+            return HomeViewModel(repository, extras.createSavedStateHandle()) as T
         }
     }
 

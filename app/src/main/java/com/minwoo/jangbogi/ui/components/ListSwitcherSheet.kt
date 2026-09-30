@@ -38,7 +38,7 @@ fun ListSwitcherSheet(
                 .navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text("내 장보기 목록", style = MaterialTheme.typography.titleLarge,
+            Text("다른 마트에서 장보기", style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(bottom = 8.dp))
             lists.forEach { entry ->
                 TextButton(onClick = { onSelect(entry.list.id) }, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
@@ -57,7 +57,7 @@ fun ListSwitcherSheet(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
             TextButton(onClick = onNewList, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                Text("＋ 새 목록으로 시작하기")
+                Text("＋ 새로운 마트 추가")
             }
             if (onCancelDraft != null) {
                 TextButton(onClick = onCancelDraft, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
@@ -66,7 +66,7 @@ fun ListSwitcherSheet(
             }
             if (lists.isNotEmpty()) {
                 TextButton(onClick = onManage, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
-                    Text("목록 이름 변경 · 삭제")
+                    Text("마트 관리")
                 }
             }
         }
