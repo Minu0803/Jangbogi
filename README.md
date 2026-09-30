@@ -17,13 +17,13 @@
 
 <br /><br />
 
-<a href="design/qa/v1.2.0-shopping-home.png"><img src="design/qa/v1.2.0-shopping-home.png" alt="살 것 화면" width="245" /></a>
+<a href="design/qa/v1.3.0-light-home.png"><img src="design/qa/v1.3.0-light-home.png" alt="살 것 화면" width="245" /></a>
 &nbsp;&nbsp;&nbsp;
-<a href="design/qa/v1.2.0-consider.png"><img src="design/qa/v1.2.0-consider.png" alt="고민 중 화면" width="245" /></a>
+<a href="design/qa/v1.3.0-light-consider.png"><img src="design/qa/v1.3.0-light-consider.png" alt="고민 중 화면" width="245" /></a>
 
 <br /><br />
 
-[📲 최신 APK 받기 · v1.2.0](장보기_v1.2.0.apk) &nbsp;·&nbsp; [설치 안내](INSTALL.md) &nbsp;·&nbsp; [화면·디자인 명세](design/DESIGN.md)
+[📲 최신 APK 받기 · v1.3.0](장보기_v1.3.0.apk) &nbsp;·&nbsp; [설치 안내](INSTALL.md) &nbsp;·&nbsp; [화면·디자인 명세](design/DESIGN.md)
 
 </div>
 
@@ -49,7 +49,7 @@
 
 ## 🚀 1분 만에 시작하기
 
-1. [최신 APK](장보기_v1.2.0.apk)를 Android 기기에 다운로드하거나 전송합니다.
+1. [최신 APK](장보기_v1.3.0.apk)를 Android 기기에 다운로드하거나 전송합니다.
 2. APK 파일을 열어 설치합니다. 처음 설치할 때는 파일을 연 앱에 대해 설치 권한을 허용해야 할 수 있어요.
 3. 앱을 열고 아래 입력창에 살 물건을 적습니다. 첫 물건을 담을 때 목록이 자동으로 만들어집니다.
 4. 마트에서 항목을 눌러 체크하고, 필요하면 목록을 공유하거나 살림 계획을 기록합니다.
@@ -69,7 +69,7 @@
 ## ✨ 사용 흐름
 
 1. **품목 담기** — 앱을 열자마자 품목을 입력하거나 추천 항목을 탭해 추가합니다. 카테고리는 자동 제안되며 직접 수정할 수도 있어요.
-2. **고민 중에 보관하기** — 목록 안에서 ‘고민 중’으로 전환해 물건을 보관하고, 결정하면 ‘살래요’를 눌러 살 것으로 옮깁니다.
+2. **고민 중에 보관하기** — 목록 안에서 ‘고민 중’으로 전환해 물건을 보관하고, 결정하면 ‘살래요’를 눌러 살 것으로 옮기거나, ‘결정할래요’의 50:50 룰렛으로 이동·삭제합니다. 결과는 실행 취소할 수 있습니다.
 3. **장보기하기** — 미완료 품목은 카테고리별로 정리됩니다. 품목을 탭하면 구매 완료로 표시되고 진행률에 반영됩니다.
 4. **공유·정리하기** — 목록을 텍스트로 공유하고, 완료한 품목을 비우거나 삭제할 수 있습니다. 삭제와 비우기는 실행 취소를 지원합니다.
 5. **다음 구매 준비하기** — 품목을 편집해 구매 날짜, 매장, 기한, 비축 월, 현재 재고를 저장하고 **살림 계획**에서 모아봅니다.
@@ -117,13 +117,15 @@ Windows PowerShell에서 명령줄로 빌드할 수도 있습니다.
 ## 🔍 품질 확인
 
 - 수량 입력 파싱, 품목 자동 분류, 구매 의도별 집계·이동, 공유 텍스트 생성을 단위 테스트로 다룹니다.
-- 새 화면의 사용 흐름과 데이터 이전 검증 결과는 [v1.2.0 검증 기록](docs/superpowers/verification/2026-09-27-v1.2.0.md)에 기록했습니다.
+- 50:50 룰렛·앱 재생성·저장 실패·Undo 및 실제 APK 업데이트 검증 결과는 [v1.3.0 검증 기록](docs/superpowers/verification/2026-09-29-v1.3.0.md)에 기록했습니다.
 - 라이트·다크 테마와 키보드가 열린 상태의 빠른 입력을 고려해 화면을 구성했습니다.
 
 ## 📚 더 보기
 
 - [설치 및 재빌드 안내](INSTALL.md)
-- [이번 화면 개편 설계](docs/superpowers/specs/2026-09-26-shopping-first-ux-design.md)
+- [화이트·블루와 룰렛 디자인](design/BLUE_ROULETTE_DESIGN.md)
+- [룰렛 설계 명세](docs/superpowers/specs/2026-09-29-blue-roulette-design.md)
+- [이전 화면 개편 설계](docs/superpowers/specs/2026-09-26-shopping-first-ux-design.md)
 - [이전 화면 디자인 명세](design/DESIGN.md)
 - [앱 구조 및 도메인 계약](CONTRACT.md)
 - [개발 진행 기록](PROGRESS.md)

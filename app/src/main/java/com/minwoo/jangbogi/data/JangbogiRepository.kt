@@ -8,6 +8,7 @@ import com.minwoo.jangbogi.domain.QuantityParser
 import com.minwoo.jangbogi.domain.Suggestion
 import com.minwoo.jangbogi.domain.PurchaseIntent
 import com.minwoo.jangbogi.domain.PurchaseIntentRules
+import com.minwoo.jangbogi.domain.DecisionOutcome
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -190,6 +191,19 @@ class JangbogiRepository(private val db: JangbogiDatabase) {
         if (before.purchaseIntent == intent) return@withTransaction ItemMutationResult.NoChange
         val after = PurchaseIntentRules.move(before, intent)
         itemDao.update(after)
+        ItemMutationResult.Applied(UndoToken(nextUndoId++, before, after))
+    }
+
+    suspend fun applyDecision(expected: ShoppingItem, outcome: DecisionOutcome): ItemMutationResult = db.withTransaction {
+        val before = itemDao.getById(expected.id) ?: return@withTransaction ItemMutationResult.Missing
+        if (before != expected || before.purchaseIntent != PurchaseIntent.CONSIDER) {
+            return@withTransaction ItemMutationResult.NoChange
+        }
+        val after = when (outcome) {
+            DecisionOutcome.BUY -> PurchaseIntentRules.move(before, PurchaseIntent.BUY)
+            DecisionOutcome.SKIP -> null
+        }
+        if (after == null) itemDao.deleteById(before.id) else itemDao.update(after)
         ItemMutationResult.Applied(UndoToken(nextUndoId++, before, after))
     }
 

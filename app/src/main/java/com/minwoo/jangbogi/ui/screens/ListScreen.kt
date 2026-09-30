@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.minwoo.jangbogi.JangbogiApp
@@ -18,6 +20,8 @@ import com.minwoo.jangbogi.data.ShoppingItem
 import com.minwoo.jangbogi.data.UndoToken
 import com.minwoo.jangbogi.data.UpdateItemResult
 import com.minwoo.jangbogi.domain.PurchaseIntent
+import com.minwoo.jangbogi.domain.DecisionOutcome
+import com.minwoo.jangbogi.ui.components.DecisionRouletteDialog
 import com.minwoo.jangbogi.ui.components.ConfirmDialog
 import com.minwoo.jangbogi.ui.components.EditItemSheet
 import com.minwoo.jangbogi.ui.components.ShoppingContent
@@ -41,6 +45,9 @@ fun ListScreen(
     val app = context.applicationContext as JangbogiApp
     val vm: ListViewModel = viewModel(key = "shopping-list-$listId", factory = app.container.listViewModelFactory(listId))
     val state by vm.uiState.collectAsStateWithLifecycle()
+    val decision by vm.decisionSession.collectAsStateWithLifecycle()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     val query by vm.query.collectAsStateWithLifecycle()
     val intent by vm.selectedIntent.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
@@ -51,15 +58,15 @@ fun ListScreen(
     var clearCompleted by remember(listId) { mutableStateOf(false) }
 
     LaunchedEffect(listId, selectionEpoch, entryIntent) {
-        vm.selectIntent(entryIntent)
-        vm.onQueryChange(initialQuery)
+        vm.restoreEntry(selectionEpoch, entryIntent, initialQuery)
     }
 
     fun info(message: String) { scope.launch { snackbar.showSnackbar(message) } }
 
-    fun showUndo(message: String, token: UndoToken) {
+    fun showUndo(message: String, token: UndoToken, duration: SnackbarDuration = SnackbarDuration.Short) {
         scope.launch {
-            val result = snackbar.showSnackbar(message, actionLabel = "실행 취소", duration = SnackbarDuration.Short)
+            snackbar.currentSnackbarData?.dismiss()
+            val result = snackbar.showSnackbar(message, actionLabel = "실행 취소", duration = duration, withDismissAction = true)
             if (result == SnackbarResult.ActionPerformed) vm.undoMutation(token) { restored ->
                 if (!restored) info("되돌릴 수 없어요. 물건이 변경되었는지 확인해 주세요")
             }
@@ -115,8 +122,23 @@ fun ListScreen(
             }
             context.startActivity(Intent.createChooser(sendIntent, "살 것만 공유 · 고민 중 제외"))
         },
-        onClearCompleted = { clearCompleted = true }
+        onClearCompleted = { clearCompleted = true },
+        onDecide = {
+            focusManager.clearFocus()
+            keyboard?.hide()
+            snackbar.currentSnackbarData?.dismiss()
+            vm.openDecision(it)
+        }
     )
+
+    decision?.let { session ->
+        DecisionRouletteDialog(session, vm::startDecision, vm::finishDecisionAnimation, onDismiss = {
+            vm.dismissDecision()?.let { result ->
+                val message = result.undoToken.before.name + if (result.outcome == DecisionOutcome.BUY) " · 살 것으로 옮겼어요" else " · 삭제했어요"
+                showUndo(message, result.undoToken, SnackbarDuration.Long)
+            }
+        }, onRetry = vm::retryDecision)
+    }
 
     if (clearCompleted) {
         ConfirmDialog(

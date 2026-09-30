@@ -16,6 +16,12 @@ import com.minwoo.jangbogi.domain.ShareTextBuilder
 import com.minwoo.jangbogi.domain.Suggestion
 import com.minwoo.jangbogi.domain.PurchaseIntent
 import com.minwoo.jangbogi.domain.ShoppingSummary
+import com.minwoo.jangbogi.domain.DecisionOutcome
+import com.minwoo.jangbogi.domain.DecisionPhase
+import com.minwoo.jangbogi.domain.DecisionRoulette
+import com.minwoo.jangbogi.domain.DecisionSession
+import com.minwoo.jangbogi.data.ShoppingItem
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,14 +31,79 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ListViewModel(
     private val repo: JangbogiRepository,
-    private val listId: Long
+    private val listId: Long,
+    private val random: Random = Random.Default
 ) : ViewModel() {
 
+    private var restoredSelectionEpoch: Long? = null
+
+    fun restoreEntry(epoch: Long, intent: PurchaseIntent, initialQuery: String) {
+        if (restoredSelectionEpoch == epoch) return
+        restoredSelectionEpoch = epoch
+        selectIntent(intent)
+        onQueryChange(initialQuery)
+    }
     private var adding = false
+    private var nextDecisionId = 1L
+    private val _decisionSession = MutableStateFlow<DecisionSession?>(null)
+    val decisionSession: StateFlow<DecisionSession?> = _decisionSession.asStateFlow()
+
+    fun openDecision(item: ShoppingItem) {
+        if (_decisionSession.value != null || item.listId != listId || item.purchaseIntent != PurchaseIntent.CONSIDER) return
+        _decisionSession.value = DecisionSession(nextDecisionId++, item)
+    }
+
+    fun startDecision() {
+        val current = _decisionSession.value ?: return
+        if (current.phase != DecisionPhase.READY) return
+        _decisionSession.value = current.start(DecisionRoulette.spin(random)) ?: return
+    }
+
+    fun finishDecisionAnimation(sessionId: Long) {
+        val current = _decisionSession.value ?: return
+        if (current.id != sessionId) return
+        val applying = current.finishAnimation() ?: return
+        _decisionSession.value = applying
+        applyDecision(applying)
+    }
+
+    fun retryDecision() {
+        val retry = _decisionSession.value?.retry() ?: return
+        _decisionSession.value = retry
+        applyDecision(retry)
+    }
+
+    private fun applyDecision(session: DecisionSession) {
+        viewModelScope.launch {
+            try {
+                val result = repo.applyDecision(session.item, requireNotNull(session.spin).outcome)
+                if (_decisionSession.value?.id != session.id || _decisionSession.value?.phase != DecisionPhase.APPLYING) return@launch
+                _decisionSession.value = when (result) {
+                    is ItemMutationResult.Applied -> session.succeed(result.undoToken)
+                    ItemMutationResult.Missing, ItemMutationResult.NoChange -> session.fail("물건이 변경되었어요. 목록에서 다시 확인해 주세요")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                if (_decisionSession.value?.id == session.id && _decisionSession.value?.phase == DecisionPhase.APPLYING) {
+                    _decisionSession.value = session.fail("저장하지 못했어요. 다시 시도해 주세요")
+                }
+            }
+        }
+    }
+
+    fun dismissDecision(): DecisionDismissal? {
+        val current = _decisionSession.value ?: return null
+        if (current.phase != DecisionPhase.READY && current.phase != DecisionPhase.ERROR && current.phase != DecisionPhase.RESULT) return null
+        _decisionSession.value = null
+        val token = current.undoToken ?: return null
+        return DecisionDismissal(requireNotNull(current.spin).outcome, token)
+    }
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -93,7 +164,12 @@ class ListViewModel(
     }
 
     fun undoMutation(token: UndoToken, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch { onResult(repo.undoMutation(token) == UndoResult.RESTORED) }
+        viewModelScope.launch {
+            val restored = try { repo.undoMutation(token) == UndoResult.RESTORED }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { false }
+            onResult(restored)
+        }
     }
 
     fun deleteItem(itemId: Long) {
@@ -161,3 +237,5 @@ class ListViewModel(
         return ShareTextBuilder.build(state.listName, items)
     }
 }
+
+data class DecisionDismissal(val outcome: DecisionOutcome, val undoToken: UndoToken)

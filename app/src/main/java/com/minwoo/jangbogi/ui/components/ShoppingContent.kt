@@ -2,6 +2,7 @@ package com.minwoo.jangbogi.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +31,8 @@ import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -90,7 +93,8 @@ fun ShoppingContent(
     onOpenLists: () -> Unit,
     onOpenPlan: () -> Unit,
     onShare: (() -> Unit)? = null,
-    onClearCompleted: (() -> Unit)? = null
+    onClearCompleted: (() -> Unit)? = null,
+    onDecide: (ShoppingItem) -> Unit = {}
 ) {
     var showCompleted by remember(state.listName) { mutableStateOf(false) }
     var moreExpanded by remember { mutableStateOf(false) }
@@ -266,7 +270,7 @@ fun ShoppingContent(
                             modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
                     }
                     item(key = "section-${section.category.name}") {
-                        ShoppingRows(section.items, onToggle, onEdit, onDelete, onMove)
+                        ShoppingRows(section.items, onToggle, onEdit, onDelete, onMove, onDecide)
                     }
                 }
                 if (state.completedItems.isNotEmpty()) {
@@ -282,7 +286,7 @@ fun ShoppingContent(
                         }
                     }
                     if (showCompleted) item {
-                        ShoppingRows(state.completedItems, onToggle, onEdit, onDelete, onMove)
+                        ShoppingRows(state.completedItems, onToggle, onEdit, onDelete, onMove, onDecide)
                     }
                 }
             } else {
@@ -296,7 +300,7 @@ fun ShoppingContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
                     }
-                    item { ShoppingRows(state.consideringItems, onToggle, onEdit, onDelete, onMove) }
+                    item { ShoppingRows(state.consideringItems, onToggle, onEdit, onDelete, onMove, onDecide) }
                 }
             }
         }
@@ -309,17 +313,19 @@ private fun ShoppingRows(
     onToggle: (Long) -> Unit,
     onEdit: (ShoppingItem) -> Unit,
     onDelete: (Long) -> Unit,
-    onMove: (Long, PurchaseIntent) -> Unit
+    onMove: (Long, PurchaseIntent) -> Unit,
+    onDecide: (ShoppingItem) -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surfaceCard, shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 10.dp)) {
             rows.forEachIndexed { index, item ->
                 if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                ShoppingRow(item, onToggle, onEdit, onDelete, onMove)
+                androidx.compose.runtime.key(item.id) { ShoppingRow(item, onToggle, onEdit, onDelete, onMove, onDecide) }
             }
         }
     }
 }
+
 
 @Composable
 private fun ShoppingRow(
@@ -327,59 +333,68 @@ private fun ShoppingRow(
     onToggle: (Long) -> Unit,
     onEdit: (ShoppingItem) -> Unit,
     onDelete: (Long) -> Unit,
-    onMove: (Long, PurchaseIntent) -> Unit
+    onMove: (Long, PurchaseIntent) -> Unit,
+    onDecide: (ShoppingItem) -> Unit
 ) {
     var menuExpanded by remember(item.id) { mutableStateOf(false) }
     val considering = item.purchaseIntent == PurchaseIntent.CONSIDER
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        if (!considering) {
-            Checkbox(
-                checked = item.isChecked,
-                onCheckedChange = { onToggle(item.id) },
+    val largeText = LocalDensity.current.fontScale >= 1.5f
+    Column(Modifier.fillMaxWidth().padding(vertical = if (considering) 8.dp else 0.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (!considering) Checkbox(checked = item.isChecked, onCheckedChange = { onToggle(item.id) },
                 modifier = Modifier.size(48.dp).semantics {
                     contentDescription = "${item.name} ${if (item.isChecked) "구매 취소" else "구매 완료"}"
+                })
+            Column(Modifier.weight(1f).heightIn(min = 48.dp).clickable { onEdit(item) }
+                .padding(start = if (considering) 10.dp else 4.dp), verticalArrangement = Arrangement.Center) {
+                if (considering) Text("고민 중", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                Text(item.name, style = MaterialTheme.typography.titleMedium,
+                    color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { contentDescription = item.name })
+            }
+            if (item.quantity > 1) Text("×${item.quantity}", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Rounded.MoreVert, contentDescription = "${item.name} 더보기")
                 }
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f).heightIn(min = 48.dp).clickable { onEdit(item) }
-                .padding(start = if (considering) 10.dp else 4.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (considering) Text("고민 중", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.tertiary)
-            Text(item.name, style = MaterialTheme.typography.titleMedium,
-                color = if (item.isChecked) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (item.isChecked) TextDecoration.LineThrough else null,
-                maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-        if (item.quantity > 1) Text("×${item.quantity}", style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (considering) {
-            TextButton(onClick = { onMove(item.id, PurchaseIntent.BUY) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text("살래요")
-            }
-        }
-        Box {
-            IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Rounded.MoreVert, contentDescription = "${item.name} 더보기")
-            }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                DropdownMenuItem(text = { Text("수정") }, onClick = { menuExpanded = false; onEdit(item) })
-                DropdownMenuItem(
-                    text = { Text(if (considering) "살 것으로 이동" else "고민 중으로 이동") },
-                    onClick = {
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("수정") }, onClick = { menuExpanded = false; onEdit(item) })
+                    DropdownMenuItem(text = { Text(if (considering) "살 것으로 이동" else "고민 중으로 이동") }, onClick = {
                         menuExpanded = false
                         onMove(item.id, if (considering) PurchaseIntent.BUY else PurchaseIntent.CONSIDER)
-                    }
-                )
-                DropdownMenuItem(text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
-                    onClick = { menuExpanded = false; onDelete(item.id) })
+                    })
+                    DropdownMenuItem(text = { Text("삭제", color = MaterialTheme.colorScheme.error) },
+                        onClick = { menuExpanded = false; onDelete(item.id) })
+                }
+            }
+        }
+        if (considering) {
+            if (largeText) Column(Modifier.fillMaxWidth().padding(horizontal = 6.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ConsiderBuyButton(item, { onMove(item.id, PurchaseIntent.BUY) }, Modifier.fillMaxWidth())
+                ConsiderDecideButton(item, { onDecide(item) }, Modifier.fillMaxWidth())
+            } else Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ConsiderBuyButton(item, { onMove(item.id, PurchaseIntent.BUY) }, Modifier.weight(1f))
+                ConsiderDecideButton(item, { onDecide(item) }, Modifier.weight(1.35f))
             }
         }
     }
+}
+
+@Composable
+private fun ConsiderBuyButton(item: ShoppingItem, onClick: () -> Unit, modifier: Modifier) {
+    FilledTonalButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = "${item.name} 살래요" },
+        shape = RoundedCornerShape(12.dp), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer)) { Text("살래요") }
+}
+
+@Composable
+private fun ConsiderDecideButton(item: ShoppingItem, onClick: () -> Unit, modifier: Modifier) {
+    OutlinedButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = "${item.name} 결정할래요" },
+        shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp)) { Text("결정할래요") }
 }
